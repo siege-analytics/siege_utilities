@@ -173,7 +173,7 @@ class CrosswalkProcessor:
         df: pd.DataFrame,
         geoid_column: str = 'GEOID',
         value_columns: Optional[List[str]] = None,
-        weight_method: WeightMethod = WeightMethod.AREA,
+        weight_method: Union[WeightMethod, str] = WeightMethod.AREA,
         aggregation_func: Union[str, Callable] = 'sum',
         intensive_variables: Optional[List[str]] = None,
     ) -> pd.DataFrame:
@@ -184,8 +184,17 @@ class CrosswalkProcessor:
             df: DataFrame with data in source boundary vintage
             geoid_column: Name of the GEOID column
             value_columns: List of columns to transform. If None, all numeric columns.
-            weight_method: How to weight data for splits/merges
-            aggregation_func: How to aggregate merged data ('sum', 'mean', 'weighted_mean')
+            weight_method: Allocation weights for extensive columns. AREA,
+                POPULATION and HOUSING use area_weight, population_weight and
+                housing_weight, respectively; a missing weight on a matched
+                source/target row raises. EQUAL allocates 1/N to each of a
+                source's N targets. Strings are converted with
+                WeightMethod(value).
+            aggregation_func: How to aggregate merged data ('sum', 'mean',
+                'weighted_mean'). 'weighted_mean' divides by the weight of the
+                rows with a non-missing value, so a missing value leaves both
+                the numerator and the denominator; a target whose values are
+                all missing is NaN with coverage 0.0.
             intensive_variables: Columns that are intensive (rates, ratios,
                 medians, densities, per-capita values). These are area-weighted
                 averaged rather than disaggregated by weight, so a split
@@ -193,11 +202,24 @@ class CrosswalkProcessor:
                 listed here are treated as extensive (disaggregated).
 
         Returns:
-            DataFrame with data in target boundary vintage
+            DataFrame with data in target boundary vintage, including a
+            <col>_coverage column for each transformed value column: the share
+            of its target's contribution weight with non-missing values.
+            Intensive coverage uses overlap areas; extensive coverage uses
+            weight_method. Targets with no contribution weight have coverage 0.
 
         Raises:
-            ValueError: If geoid_column not found in DataFrame
+            ValueError: If geoid_column is absent, the requested weight column
+                or a matched AREA/POPULATION/HOUSING row weight is missing, the
+                method string is unknown, or an intensive merge lacks valid
+                absolute areas.
+            TypeError: If weight_method is neither a WeightMethod nor a string.
         """
+        if isinstance(weight_method, str):
+            weight_method = WeightMethod(weight_method)
+        elif not isinstance(weight_method, WeightMethod):
+            raise TypeError("weight_method must be a WeightMethod or its string value")
+
         if geoid_column not in df.columns:
             raise ValueError(f"GEOID column '{geoid_column}' not found in DataFrame")
 
@@ -257,6 +279,18 @@ class CrosswalkProcessor:
             'area_weight': c_aw,
         }
         sel = ['source_geoid', 'target_geoid', 'area_weight']
+        weight_column = {
+            WeightMethod.POPULATION: 'population_weight',
+            WeightMethod.HOUSING: 'housing_weight',
+        }.get(weight_method)
+        if weight_column is not None:
+            if weight_column not in self.crosswalk_df.columns:
+                raise ValueError(
+                    f"Cannot use {weight_method.name} weighting: the crosswalk "
+                    f"is missing the required '{weight_column}' column."
+                )
+            sel.append(weight_column)
+            rename_map[weight_column] = f'{R}{weight_column}'
         has_overlap = 'overlap_area' in self.crosswalk_df.columns
         has_source_area = 'source_area' in self.crosswalk_df.columns
         if intensive_set:
@@ -287,9 +321,25 @@ class CrosswalkProcessor:
 
         # Get weight column based on method
         if weight_method == WeightMethod.EQUAL:
-            merged[c_weight] = 1.0
+            # Count targets, not input rows: repeated source observations must
+            # each allocate their full value across the same set of targets.
+            target_counts = merged.groupby(c_src, dropna=False)[c_tgt].transform('nunique')
+            merged[c_weight] = 1.0 / target_counts
+        elif weight_column is not None:
+            self._reject_missing_weights(
+                merged, weight_column, merged[rename_map[weight_column]].isna() & ~unmatched,
+                c_src, c_tgt,
+            )
+            # Unmatched sources retain their values; matched rows use the
+            # requested allocation, including valid zero weights.
+            merged[c_weight] = merged[rename_map[weight_column]].where(~unmatched, 1.0)
         else:
-            merged[c_weight] = merged[c_aw].fillna(1.0)
+            # AREA: unmatched sources were given area_weight 1.0 above, so a
+            # missing area_weight here is a matched row with no allocation.
+            self._reject_missing_weights(
+                merged, 'area_weight', merged[c_aw].isna(), c_src, c_tgt,
+            )
+            merged[c_weight] = merged[c_aw]
 
         # Split the value columns into extensive (disaggregated by weight) and
         # intensive (area-weighted averaged). They need fundamentally different
@@ -305,6 +355,7 @@ class CrosswalkProcessor:
         # Apply weights to extensive value columns (for splits/merges).
         for col in extensive_cols:
             merged[f'{R}weighted_{col}'] = merged[col] * merged[c_weight]
+            merged[f'{R}covered_{col}'] = merged[c_weight].where(merged[col].notna(), 0.0)
 
         # Build the area-weighted numerator/denominator for intensive columns.
         # The area-weighted mean is Sum(value_i * overlap_i) / Sum(overlap_i),
@@ -373,6 +424,7 @@ class CrosswalkProcessor:
                 areal_w = areal_w.where(~(bad_area & ~is_merge), 1.0)
 
             areal_w = areal_w.where(~no_contribution, 0.0)
+            merged[f'{R}total_area'] = areal_w
 
             for col in intensive_cols:
                 vals = pd.to_numeric(merged[col], errors='coerce')
@@ -384,18 +436,21 @@ class CrosswalkProcessor:
         agg_dict = {}
         for col in extensive_cols:
             weighted_col = f'{R}weighted_{col}'
+            agg_dict[f'{R}covered_{col}'] = (f'{R}covered_{col}', 'sum')
             if aggregation_func == 'sum':
-                agg_dict[col] = (weighted_col, 'sum')
+                agg_dict[col] = (weighted_col, lambda values: values.sum(min_count=1))
             elif aggregation_func == 'mean':
                 agg_dict[col] = (weighted_col, 'mean')
             elif aggregation_func == 'weighted_mean':
                 # Will be divided by total weight below.
-                agg_dict[col] = (weighted_col, 'sum')
+                agg_dict[col] = (weighted_col, lambda values: values.sum(min_count=1))
             else:
                 agg_dict[col] = (weighted_col, aggregation_func)
         for col in intensive_cols:
             agg_dict[f'{R}inum_{col}'] = (f'{R}inum_{col}', 'sum')
             agg_dict[f'{R}iden_{col}'] = (f'{R}iden_{col}', 'sum')
+        if intensive_cols:
+            agg_dict[f'{R}total_area'] = (f'{R}total_area', 'sum')
 
         # Also aggregate weights for weighted_mean calculation.
         agg_dict[c_total_weight] = (c_weight, 'sum')
@@ -409,18 +464,32 @@ class CrosswalkProcessor:
         # Extensive weighted_mean normalization (intensive columns are never
         # touched here -- they are computed from their own numerator/denominator
         # below, so 'mean'/'weighted_mean' cannot double-divide a rate).
+        # The denominator is each column's own covered weight, so rows whose
+        # value is missing leave both the numerator and the denominator; a
+        # target with no non-missing value has a zero denominator and stays NaN.
         if aggregation_func == 'weighted_mean':
             for col in extensive_cols:
                 if col in result.columns:
-                    result[col] = result[col] / result[c_total_weight]
+                    covered_weight = result[f'{R}covered_{col}'].replace(0, np.nan)
+                    result[col] = result[col] / covered_weight
 
-        # Intensive area-weighted mean: numerator / denominator.
-        drop_cols = [c_total_weight]
+        # Coverage is the non-missing contribution weight / total target weight.
+        drop_cols = [c_total_weight, f'{R}total_area']
+        for col in extensive_cols:
+            covered = f'{R}covered_{col}'
+            result[f'{col}_coverage'] = (
+                result[covered] / result[c_total_weight].replace(0, np.nan)
+            ).fillna(0.0)
+            drop_cols.append(covered)
         for col in intensive_cols:
+            # Intensive area-weighted mean: numerator / denominator.
             inum, iden = f'{R}inum_{col}', f'{R}iden_{col}'
             if inum in result.columns and iden in result.columns:
                 with np.errstate(invalid='ignore', divide='ignore'):
                     result[col] = result[inum] / result[iden].replace(0, np.nan)
+                result[f'{col}_coverage'] = (
+                    result[iden] / result[f'{R}total_area'].replace(0, np.nan)
+                ).fillna(0.0)
                 drop_cols += [inum, iden]
 
         # Drop helper columns
@@ -428,6 +497,24 @@ class CrosswalkProcessor:
 
         log.info(f"Transformed to {len(result)} rows in target vintage")
         return result
+
+    @staticmethod
+    def _reject_missing_weights(
+        merged: pd.DataFrame,
+        weight_column: str,
+        missing_weight: pd.Series,
+        c_src: str,
+        c_tgt: str,
+    ) -> None:
+        """Raise naming each matched source/target pair that lacks a weight."""
+        if not missing_weight.any():
+            return
+        rows = merged.loc[missing_weight, [c_src, c_tgt]].drop_duplicates()
+        rows = rows.rename(columns={c_src: 'source_geoid', c_tgt: 'target_geoid'})
+        raise ValueError(
+            f"Missing '{weight_column}' for matched source/target rows: "
+            f"{rows.to_dict('records')}"
+        )
 
     @staticmethod
     def _reconstruct_overlap_area(
@@ -504,7 +591,7 @@ def apply_crosswalk(
     state_fips: Optional[str] = None,
     geoid_column: str = 'GEOID',
     value_columns: Optional[List[str]] = None,
-    weight_method: WeightMethod = WeightMethod.AREA,
+    weight_method: Union[WeightMethod, str] = WeightMethod.AREA,
     aggregation_func: Union[str, Callable] = 'sum',
     intensive_variables: Optional[List[str]] = None,
 ) -> pd.DataFrame:
@@ -522,11 +609,16 @@ def apply_crosswalk(
         state_fips: Optional state FIPS to filter crosswalk
         geoid_column: Name of the GEOID column in df
         value_columns: List of columns to transform. If None, all numeric columns.
-        weight_method: How to weight data for splits/merges
+        weight_method: WeightMethod or its string value for splits/merges.
+            POPULATION/HOUSING require the corresponding crosswalk weight column
+            and non-missing weights for matched rows.
         aggregation_func: How to aggregate data ('sum', 'mean', 'weighted_mean')
+        intensive_variables: Rate/ratio columns to area-weight average instead
+            of disaggregating and summing.
 
     Returns:
-        DataFrame with data transformed to target boundary vintage
+        DataFrame with data transformed to target boundary vintage, including
+        <col>_coverage for each transformed column (see transform).
 
     Example:
         # Transform 2010 income data to 2020 tracts
@@ -536,7 +628,8 @@ def apply_crosswalk(
             target_year=2020,
             geography_level='tract',
             state_fips='06',  # California
-            value_columns=['median_income', 'total_population']
+            value_columns=['median_income', 'total_population'],
+            intensive_variables=['median_income'],
         )
     """
     # Get crosswalk
@@ -573,7 +666,9 @@ def normalize_to_year(
     geography_level: str = 'tract',
     state_fips: Optional[str] = None,
     geoid_column: str = 'GEOID',
-    value_columns: Optional[List[str]] = None
+    value_columns: Optional[List[str]] = None,
+    weight_method: Union[WeightMethod, str] = WeightMethod.AREA,
+    intensive_variables: Optional[List[str]] = None,
 ) -> pd.DataFrame:
     """
     Normalize data to a specific boundary year.
@@ -589,9 +684,16 @@ def normalize_to_year(
         state_fips: Optional state FIPS filter
         geoid_column: Name of GEOID column
         value_columns: Columns to transform
+        weight_method: WeightMethod or its string value for extensive columns
+            (default: AREA).
+            POPULATION/HOUSING require the corresponding crosswalk weight column.
+        intensive_variables: Rate/ratio columns to area-weight average instead
+            of disaggregating and summing. Requires absolute areas on merges.
 
     Returns:
-        DataFrame normalized to target year boundaries
+        DataFrame normalized to target year boundaries, including <col>_coverage
+        for each transformed column. If data_year equals target_year, returns
+        an unchanged copy.
 
     Example:
         # Normalize mixed-year data to 2020 boundaries
@@ -613,7 +715,9 @@ def normalize_to_year(
         geography_level=geography_level,
         state_fips=state_fips,
         geoid_column=geoid_column,
-        value_columns=value_columns
+        value_columns=value_columns,
+        weight_method=weight_method,
+        intensive_variables=intensive_variables,
     )
 
 
