@@ -390,7 +390,7 @@ _register_lazy([
     'create_heatmap', 'create_choropleth_map', 'create_bivariate_choropleth',
     'create_marker_map', 'create_flow_map', 'create_dashboard',
     'create_dataframe_summary_charts', 'generate_chart_from_dataframe',
-], '.reporting.chart_generator', deps=['matplotlib', 'seaborn'])
+], '.reporting.chart_generator', deps=['matplotlib'])  # seaborn is optional (#2041)
 
 # ── Runtime guard (stdlib-only, always importable) ────────────────
 

@@ -292,6 +292,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Charts no longer come back blank when seaborn is not installed (#2041). The
+  chart engines and `ChartGenerator` imported matplotlib and seaborn under one
+  guard, so a missing seaborn also disabled matplotlib and every chart became
+  a placeholder. matplotlib and seaborn are now guarded separately
+  (`MATPLOTLIB_AVAILABLE`, `SEABORN_AVAILABLE`), and seaborn stays optional:
+  heatmaps (`create_heatmap` and `PollingAnalyzer.create_heatmap_visualization`)
+  use it when installed and otherwise draw the same layout with plain
+  matplotlib, and default styling applies the palette and grid through
+  matplotlib. The root chart functions (`siege_utilities.create_heatmap` and
+  the others from `chart_generator`) no longer list seaborn as a required
+  dependency. A placeholder that stands in for a chart now emits a
+  `UserWarning` (and a log warning) naming the module that is actually
+  missing, including the blank 1x1 image returned when matplotlib itself is
+  absent.
+- `create_report_generator()` no longer raises `FileNotFoundError` when the
+  user has no profile (#2042). It now builds the `ReportGenerator` with its
+  own default output directory (`Path.cwd() / "reports"`, the same as
+  `ReportGenerator(...)` alone) and logs a warning naming the missing profile
+  and the directory used. `get_report_output_directory()` is unchanged.
 - Report facade charts and sample tables, three follow-ups to the facade PDF
   change of #1461:
   - a NumPy complex chart value (`numpy.complex64`, `numpy.complex128`) now

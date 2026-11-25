@@ -145,9 +145,26 @@ def get_report_output_directory(client_code: str = None) -> Path:
 
 
 def create_report_generator(client_name: str, client_code: str = None):
-    """Create a ReportGenerator with profile-based output directory."""
+    """Create a ReportGenerator with profile-based output directory.
+
+    When the user has no profile (``get_report_output_directory`` raises
+    FileNotFoundError), the generator is built with ``output_dir=None`` so
+    ``ReportGenerator`` applies its own default (``Path.cwd() / "reports"``)
+    and a warning names the missing profile file and the directory used
+    (#2042).
+    """
     from .report_generator import ReportGenerator as _RG
-    output_dir = get_report_output_directory(client_code)
+    try:
+        output_dir = get_report_output_directory(client_code)
+    except FileNotFoundError as e:
+        # No profile: defer to the constructor's own default location.
+        generator = _RG(client_name, None)
+        log.warning(
+            "No user profile found (%s); create_report_generator is using "
+            "ReportGenerator's default output directory %s",
+            e, generator.output_dir,
+        )
+        return generator
     return _RG(client_name, output_dir)
 
 

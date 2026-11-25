@@ -9,14 +9,20 @@ from typing import Dict, List, Any, Union
 
 from .._markup import _escape_paragraph
 
-# Core plotting libraries
+# Core plotting libraries. seaborn is optional and guarded separately so a
+# missing seaborn never disables matplotlib (#2041).
 try:
     import matplotlib.pyplot as plt
-    import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+
+try:
+    import seaborn as sns
+    SEABORN_AVAILABLE = True
+except ImportError:
+    SEABORN_AVAILABLE = False
     sns = None
 
 # Data processing
@@ -68,7 +74,7 @@ class BarChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             # Convert data to DataFrame if needed
@@ -158,7 +164,7 @@ class BarChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             # Convert data to DataFrame if needed
@@ -242,7 +248,7 @@ class BarChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             # Convert data to DataFrame if needed

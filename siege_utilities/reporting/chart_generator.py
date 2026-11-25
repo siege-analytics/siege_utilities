@@ -7,14 +7,20 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 
-# Core plotting libraries
+# Core plotting libraries. seaborn is optional and guarded separately so a
+# missing seaborn never disables matplotlib (#2041).
 try:
     import matplotlib.pyplot as plt
-    import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+
+try:
+    import seaborn as sns
+    SEABORN_AVAILABLE = True
+except ImportError:
+    SEABORN_AVAILABLE = False
     sns = None
 
 # Interactive plotting

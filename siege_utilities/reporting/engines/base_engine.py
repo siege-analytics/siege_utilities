@@ -5,6 +5,7 @@ Base engine mixin — ``__init__``, scaling, placeholder, and conversion helpers
 import logging
 import io
 import base64
+import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, List, Any, Optional, Union
 
@@ -13,14 +14,20 @@ from .._markup import _escape_paragraph
 if TYPE_CHECKING:
     import geopandas as gpd
 
-# Core plotting libraries
+# Core plotting libraries. seaborn is optional styling only: it is guarded
+# separately so a missing seaborn never disables matplotlib (#2041).
 try:
     import matplotlib.pyplot as plt
-    import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
+
+try:
+    import seaborn as sns
+    SEABORN_AVAILABLE = True
+except ImportError:
+    SEABORN_AVAILABLE = False
     sns = None
 
 # Geographic plotting
@@ -76,6 +83,18 @@ def _rl_image_from_data_uri(data_uri: str, width_pts: float, height_pts: float) 
     image = Image(buffer, width=width_pts, height=height_pts)
     image.filename = data_uri
     return image
+
+
+def _missing_modules(**available: bool) -> str:
+    """Name the unavailable modules, e.g. ``_missing_modules(matplotlib=True,
+    geopandas=False)`` -> ``"geopandas"``. Used for placeholder warnings so
+    the message names what is actually missing (#2041)."""
+    return " and ".join(name for name, ok in available.items() if not ok)
+
+
+_BLANK_PNG_DATA_URI = (
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+)
 
 __all__ = [
     "BaseChartEngine",
@@ -149,10 +168,17 @@ class BaseChartEngine:
             # Set style
             plt.style.use('default')
 
-            # Configure seaborn
-            if sns:
+            # Configure seaborn when installed; otherwise apply the same
+            # palette and a white-grid look through plain matplotlib.
+            if SEABORN_AVAILABLE:
                 sns.set_palette(self.color_palette)
                 sns.set_style("whitegrid")
+            else:
+                from matplotlib import cycler
+                plt.rcParams['axes.prop_cycle'] = cycler(color=self.color_palette)
+                plt.rcParams['axes.grid'] = True
+                plt.rcParams['axes.axisbelow'] = True
+                plt.rcParams['grid.color'] = '0.8'
 
             # Set default font sizes and DPI
             plt.rcParams['figure.dpi'] = 150
@@ -359,19 +385,44 @@ class BaseChartEngine:
             ) from e
 
     def _create_placeholder_chart(self, width: float, height: float,
-                                text: str = "Chart Placeholder") -> Image:
+                                text: Optional[str] = None,
+                                missing: Optional[str] = None) -> Image:
         """
-        Create a placeholder chart when chart generation fails.
+        Create a placeholder image in place of a chart.
+
+        A placeholder is never silent when it stands in for a chart that
+        could not be drawn (#2041): when ``missing`` names an unavailable
+        module, or when matplotlib itself is unavailable (the placeholder is
+        then a blank 1x1 image), a ``UserWarning`` naming the missing module
+        is emitted and logged. Informational placeholders (``missing=None``
+        with matplotlib present, e.g. the saved-map notice) do not warn.
 
         Args:
             width: Chart width in inches
             height: Chart height in inches
-            text: Text to display in placeholder
+            text: Text to display in placeholder. Defaults to
+                ``"<missing> not available"`` or ``"Chart Placeholder"``.
+            missing: Name(s) of the module(s) whose absence prevented the
+                requested chart, e.g. ``"matplotlib"`` or ``"folium"``.
 
         Returns:
             ReportLab Image object
         """
         _require_reportlab()
+        if text is None:
+            text = f"{missing} not available" if missing else "Chart Placeholder"
+        if missing or not MATPLOTLIB_AVAILABLE:
+            if not MATPLOTLIB_AVAILABLE and (not missing or "matplotlib" not in missing):
+                missing = f"{missing} and matplotlib" if missing else "matplotlib"
+            shape = ("a blank 1x1 placeholder image" if not MATPLOTLIB_AVAILABLE
+                     else "a placeholder image")
+            verb = "are" if " and " in missing else "is"
+            message = (
+                f"{missing} {verb} not installed; returning {shape} instead of the "
+                f"requested chart ({text!r}). Install {missing} to render it."
+            )
+            log.warning(message)
+            warnings.warn(message, UserWarning, stacklevel=3)
         try:
             # Create a simple placeholder using matplotlib
             if MATPLOTLIB_AVAILABLE:
@@ -385,20 +436,19 @@ class BaseChartEngine:
                 # Convert to ReportLab Image (inherits auto-scaling)
                 return self._matplotlib_to_reportlab_image(fig, width, height)
             else:
-                # Fallback to simple text — still honour auto-scaling
+                # Blank 1x1 image (warned above) — still honour auto-scaling
                 sw, sh = self._scale_dimensions(width, height)
-                return _rl_image_from_data_uri(
-                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                    sw * inch, sh * inch,
-                )
+                return _rl_image_from_data_uri(_BLANK_PNG_DATA_URI, sw * inch, sh * inch)
         except (ValueError, TypeError, AttributeError, OSError) as e:
-            log.error(f"Error creating placeholder chart: {e}")
+            message = (
+                f"placeholder chart rendering failed ({e}); returning a blank "
+                f"1x1 placeholder image instead of {text!r}"
+            )
+            log.error(message)
+            warnings.warn(message, UserWarning, stacklevel=3)
             # Return a minimal image — still honour auto-scaling
             sw, sh = self._scale_dimensions(width, height)
-            return _rl_image_from_data_uri(
-                "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-                sw * inch, sh * inch,
-            )
+            return _rl_image_from_data_uri(_BLANK_PNG_DATA_URI, sw * inch, sh * inch)
 
     def create_chart_with_caption(self, chart: Image, caption: str,
                                 caption_style: Optional[str] = None) -> List:

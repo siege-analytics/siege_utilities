@@ -5,16 +5,24 @@ Composite chart mixins — convergence diagrams, dashboards, and subplot helpers
 import logging
 from typing import Dict, List, Any, Optional
 
-# Core plotting libraries
+from .base_engine import _missing_modules
+
+# Core plotting libraries. seaborn is optional and guarded separately so a
+# missing seaborn never disables matplotlib (#2041).
 try:
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
-    import seaborn as sns
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
     plt = None
     mpatches = None
+
+try:
+    import seaborn as sns
+    SEABORN_AVAILABLE = True
+except ImportError:
+    SEABORN_AVAILABLE = False
     sns = None
 
 # Data processing
@@ -77,7 +85,7 @@ class CompositeChartMixin:
             ReportLab Image object.
         """
         if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             if not sources:
@@ -220,7 +228,7 @@ class CompositeChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib not available")
+            return self._create_placeholder_chart(width, height, missing="matplotlib")
 
         try:
             # Parse layout
@@ -294,7 +302,10 @@ class CompositeChartMixin:
             ReportLab Image object
         """
         if not MATPLOTLIB_AVAILABLE or not PANDAS_AVAILABLE:
-            return self._create_placeholder_chart(width, height, "Matplotlib/Pandas not available")
+            return self._create_placeholder_chart(
+                width, height,
+                missing=_missing_modules(matplotlib=MATPLOTLIB_AVAILABLE, pandas=PANDAS_AVAILABLE),
+            )
 
         try:
             # Get numeric columns
