@@ -88,5 +88,6 @@ def test_export_prepared_df_as_csv_uses_prepared_frame_and_delimiter(
     writer.format.assert_called_once_with("csv")
     writer.option.assert_any_call("header", "true")
     writer.option.assert_any_call("delimiter", "\t")
-    writer.mode.assert_called_once_with("overwrite")
+    # Non-destructive default (#1839): an existing export is not replaced.
+    writer.mode.assert_called_once_with("errorifexists")
     writer.save.assert_called_once_with(str(output_path))

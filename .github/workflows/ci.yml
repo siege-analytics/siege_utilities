@@ -162,7 +162,7 @@ jobs:
         NOTEBOOK_KERNEL_NAME: siege-notebook-ci
         NOTEBOOK_ARTIFACT_DIR: ${{ runner.temp }}/notebook-artifacts
       run: |
-        uv run pytest -o addopts='' -p no:cacheprovider tests/test_notebooks.py -q -k pure -m "not integration"
+        uv run pytest -o addopts='' -p no:cacheprovider tests/test_notebooks.py -q -k "pure or test_execution_notebook_has_code_cells or test_schematic_notebook_is_markdown_only" -m "not integration"
 
     - name: Upload notebook failure artifacts
       if: failure()
@@ -272,7 +272,8 @@ jobs:
       run: |
         sed -i "s/\"gdal>=3.6,<4\"/\"gdal==$(gdal-config --version)\"/g" pyproject.toml
         grep -qE '"gdal==[0-9]' pyproject.toml || { echo "gdal pin rewrite failed (gdal-config missing or pin literal changed)"; exit 1; }
-        uv sync --extra all --extra gdal --extra dev
+        uv sync --extra all --extra gdal --extra dev --extra crm
+        uv run python -c "import msal"  # Fail instead of skipping Dynamics tests.
 
     - name: Install DuckDB spatial for real integration tests
       run: uv run python scripts/prepare_duckdb_spatial.py

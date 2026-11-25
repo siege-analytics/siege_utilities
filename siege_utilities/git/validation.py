@@ -58,6 +58,8 @@ GIT_REF_INVALID_PATTERNS = [
     r'~',              # No tilde
     r':',              # No colon
     r' ',              # No spaces
+    r'^\.',            # No leading dot component
+    r'[\x00-\x1f\x7f]', # No ASCII control characters
 ]
 
 
@@ -143,12 +145,26 @@ def validate_git_ref_name(ref_name: str, ref_type: str = "ref") -> str:
     return ref_name
 
 
-def validate_branch_name(branch_name: str) -> str:
+def _reject_ambiguous_name(name: str, ref_type: str, repo_path: str) -> None:
+    """Reject revision aliases and bare names that could denote worktree paths."""
+    if name in {"HEAD", "@"}:
+        raise GitSecurityError(f"Git {ref_type} name is a reserved revision: {name}")
+    # A slash denotes a branch namespace, not a worktree path. For bare
+    # names, reject filename-like spelling and collisions in the chosen repo.
+    # Do not use cwd: callers may operate on a different repository.
+    if '/' not in name:
+        path = Path(repo_path) / name
+        if '.' in name or path.exists() or path.is_symlink():
+            raise GitSecurityError(f"Git {ref_type} name is path-like: {name}")
+
+
+def validate_branch_name(branch_name: str, repo_path: str = ".") -> str:
     """
     Validate a git branch name.
 
     Args:
         branch_name: Branch name to validate
+        repo_path: Repository whose bare file/directory names must be rejected
 
     Returns:
         Validated branch name
@@ -161,7 +177,9 @@ def validate_branch_name(branch_name: str) -> str:
         'feature/authentication'
         >>> validate_branch_name("branch$(cat /etc/passwd)")  # doctest: +SKIP
     """
-    return validate_git_ref_name(branch_name, "branch")
+    branch_name = validate_git_ref_name(branch_name, "branch")
+    _reject_ambiguous_name(branch_name, "branch", repo_path)
+    return branch_name
 
 
 def validate_tag_name(tag_name: str) -> str:
@@ -273,12 +291,13 @@ def validate_commit_hash(commit_hash: str) -> str:
     return commit_hash
 
 
-def validate_remote_name(remote_name: str) -> str:
+def validate_remote_name(remote_name: str, repo_path: str = ".") -> str:
     """
     Validate a git remote name.
 
     Args:
         remote_name: Remote name to validate (e.g., "origin")
+        repo_path: Repository whose bare file/directory names must be rejected
 
     Returns:
         Validated remote name
@@ -308,6 +327,7 @@ def validate_remote_name(remote_name: str) -> str:
             f"Remote name contains invalid characters: {remote_name}"
         )
 
+    _reject_ambiguous_name(remote_name, "remote", repo_path)
     log.debug(f"Remote name validated: {remote_name}")
     return remote_name
 

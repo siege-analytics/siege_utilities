@@ -199,18 +199,59 @@ def move_column_to_front_of_dataframe(df: "DataFrame", column_name: str
     return df_reordered
 
 
-def write_df_to_parquet(df: "DataFrame", path: str, mode: str='overwrite'
-    ) -> None:
+_SPARK_WRITE_MODES = frozenset({'append', 'overwrite', 'ignore', 'error', 'errorifexists'})
+
+
+def _validate_spark_write_mode(mode) -> str:
+    """Return ``mode`` lower-cased if it is a documented Spark save mode.
+
+    Spark matches save modes case-insensitively, so ``'Overwrite'`` is
+    accepted and normalized. Anything else raises before a write starts,
+    rather than reaching the JVM with an unrecognized mode.
+
+    Raises:
+        ValueError: ``mode`` is not a string naming one of
+            ``_SPARK_WRITE_MODES``.
+    """
+    if not isinstance(mode, str) or mode.lower() not in _SPARK_WRITE_MODES:
+        raise ValueError(
+            f"Invalid Spark write mode {mode!r}; expected one of "
+            f"{sorted(_SPARK_WRITE_MODES)}"
+        )
+    return mode.lower()
+
+
+def write_df_to_parquet(df: "DataFrame", path: str,
+    mode: str='errorifexists') -> None:
     """
     Writes a DataFrame to a Parquet file.
+
+    The default does not destroy existing data: if ``path`` already exists
+    Spark raises ``AnalysisException`` and leaves it untouched. Pass
+    ``mode='overwrite'`` to replace an existing path deliberately.
 
     Args:
         df (DataFrame): Input Spark DataFrame.
         path (str): Output path.
-        mode (str): Write mode. Defaults to "overwrite".
+        mode (str): Spark save mode, case-insensitive: ``'errorifexists'``
+            (default; alias ``'error'``), ``'overwrite'``, ``'append'`` or
+            ``'ignore'`` (skip the write if the path exists).
+
+    Raises:
+        ValueError: ``mode`` is not a recognized Spark save mode. Raised
+            before any write.
+        pyspark.errors.AnalysisException: ``path`` exists and ``mode`` is
+            ``'errorifexists'``/``'error'``. Other Spark write errors
+            propagate unchanged.
     """
+    mode = _validate_spark_write_mode(mode)
     df.write.mode(mode).parquet(path)
-    log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
+    if mode == 'ignore':
+        # Spark does not report whether 'ignore' skipped an existing path.
+        log_info(f"Parquet write to {path} finished with mode 'ignore'; "
+            "nothing was written if the path already existed")
+    else:
+        log_info(f"Dataframe written to parquet at {path} with mode '{mode}'")
 
 
 def read_parquet_to_df(spark: "SparkSession", path: str) -> "DataFrame":
@@ -813,21 +854,37 @@ def pivot_summary_with_metrics(df, group_col, pivot_col, spark):
 
 
 def export_prepared_df_as_csv_to_path_using_delimiter(df: "DataFrame",
-    write_path: pathlib.Path, delimiter: str=',') -> None:
+    write_path: pathlib.Path, delimiter: str=',',
+    mode: str='errorifexists') -> None:
     """
     Exports DataFrame **with necessary transformations** to ensure Spark compatibility.
 
     :param df: Target DataFrame
     :param write_path: Pathlib object for export destination
     :param delimiter: CSV delimiter (default is comma)
+    :param mode: Spark save mode, case-insensitive. The default
+        ``'errorifexists'`` (alias ``'error'``) refuses to replace an existing
+        ``write_path``; pass ``'overwrite'`` to replace it deliberately, or
+        ``'append'``/``'ignore'``.
+    :raises ValueError: ``mode`` is not a recognized Spark save mode. Raised
+        before the DataFrame is prepared or written.
+    :raises pyspark.errors.AnalysisException: ``write_path`` exists and
+        ``mode`` is ``'errorifexists'``/``'error'``; the existing output is
+        left untouched. Other Spark write errors propagate unchanged.
 
     Applies `prepare_dataframe_for_export()` to prevent Spark export issues.
     """
+    mode = _validate_spark_write_mode(mode)
     prepared_df = prepare_dataframe_for_export(df)
     prepared_df.coalesce(1).write.format(RESULTS_OUTPUT_FORMAT).option(
-        'header', 'true').option('delimiter', delimiter).mode('overwrite'
+        'header', 'true').option('delimiter', delimiter).mode(mode
         ).save(str(write_path))
-    log_info(f'Data successfully exported for step: {write_path.stem}')
+    if mode == 'ignore':
+        # Spark does not report whether 'ignore' skipped an existing path.
+        log_info(f"Export for step {write_path.stem} finished with mode 'ignore'; "
+            'nothing was written if the path already existed')
+    else:
+        log_info(f'Data successfully exported for step: {write_path.stem}')
 
 
 def print_debug_table(spark_df, title):

@@ -10,6 +10,8 @@ import os
 from importlib.metadata import version as _pkg_version, PackageNotFoundError
 from pathlib import Path
 
+from ._home import _home_directory
+
 __all__ = [
     'LIBRARY_NAME',
     'LIBRARY_VERSION',
@@ -112,10 +114,38 @@ RETRY_DELAY = 1           # seconds between retries - prevents overwhelming serv
 # FILE SYSTEM CONSTANTS
 # =============================================================================
 
-# Default paths (using environment variables with fallbacks)
-SIEGE_UTILITIES_HOME = Path(os.getenv('SIEGE_UTILITIES', Path.home() / 'siege_utilities'))
-SIEGE_CACHE_DIR = Path(os.getenv('SIEGE_CACHE', Path.home() / '.siege_cache'))
-SIEGE_OUTPUT_DIR = Path(os.getenv('SIEGE_OUTPUT', Path.home() / 'Downloads'))
+# Resolve each path on first access, after checking its environment override.
+# Type declarations do not resolve the lazy module attributes.
+SIEGE_UTILITIES_HOME: Path
+SIEGE_CACHE_DIR: Path
+SIEGE_OUTPUT_DIR: Path
+
+_PATH_DEFAULTS = {
+    'SIEGE_UTILITIES_HOME': ('SIEGE_UTILITIES', 'siege_utilities'),
+    'SIEGE_CACHE_DIR': ('SIEGE_CACHE', '.siege_cache'),
+    'SIEGE_OUTPUT_DIR': ('SIEGE_OUTPUT', 'Downloads'),
+}
+# importlib.reload() must also discard paths resolved by an earlier import.
+for _name in _PATH_DEFAULTS:
+    globals().pop(_name, None)
+
+
+def _get_path(name: str) -> Path:
+    if name not in globals():
+        env_name, suffix = _PATH_DEFAULTS[name]
+        raw = os.getenv(env_name)
+        globals()[name] = Path(raw) if raw is not None else _home_directory() / suffix
+    return globals()[name]
+
+
+def __getattr__(name: str) -> Path:
+    if name in _PATH_DEFAULTS:
+        return _get_path(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(__all__))
 
 # File size limits
 SMALL_FILE_THRESHOLD = 1024 * 1024  # 1 MB
@@ -279,11 +309,11 @@ def get_chart_dimensions(chart_type: str = "default") -> tuple[float, float]:
 def get_file_path(path_type: str) -> Path:
     """Get standard file paths."""
     path_map = {
-        "home": SIEGE_UTILITIES_HOME,
-        "cache": SIEGE_CACHE_DIR,
-        "output": SIEGE_OUTPUT_DIR
+        "home": 'SIEGE_UTILITIES_HOME',
+        "cache": 'SIEGE_CACHE_DIR',
+        "output": 'SIEGE_OUTPUT_DIR'
     }
-    return path_map.get(path_type, SIEGE_UTILITIES_HOME)
+    return _get_path(path_map.get(path_type, 'SIEGE_UTILITIES_HOME'))
 
 def get_service_timeout(service_name: str) -> int:
     """

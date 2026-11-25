@@ -6,9 +6,12 @@ import logging
 import io
 import base64
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Any, Optional, Union
 
 from .._markup import _escape_paragraph
+
+if TYPE_CHECKING:
+    import geopandas as gpd
 
 # Core plotting libraries
 try:
@@ -459,7 +462,8 @@ class BaseChartEngine:
     def generate_chart_from_dataframe(self, df, chart_type: str = "bar",
                                     x_column: str = None, y_columns: List[str] = None,
                                     title: str = "", width: float = 6.0,
-                                    height: float = 4.0) -> Image:
+                                    height: float = 4.0, *,
+                                    geo_data: Union['gpd.GeoDataFrame', str, Path, Dict, None] = None) -> Image:
         """
         Generate a chart from a pandas DataFrame.
 
@@ -471,30 +475,39 @@ class BaseChartEngine:
             title: Chart title
             width: Chart width in inches
             height: Chart height in inches
+            geo_data: Geometry for choropleth maps (GeoDataFrame, GeoJSON path
+                or dictionary). Bivariate GeoDataFrames can supply their own geometry.
 
         Returns:
             ReportLab Image object
         """
         try:
+            common = dict(data=df, title=title, width=width, height=height)
+            value_column = y_columns[0] if y_columns else None
             if chart_type == "bar":
-                return self.create_bar_chart(df, x_column, y_columns[0] if y_columns else None, title, width, height)
+                return self.create_bar_chart(x_column=x_column, y_column=value_column, **common)
             elif chart_type == "line":
-                return self.create_line_chart(df, x_column, y_columns, title, width, height)
+                return self.create_line_chart(x_column=x_column, y_columns=y_columns, **common)
             elif chart_type == "pie":
-                return self.create_pie_chart(df, x_column, y_columns[0] if y_columns else None, title, width, height)
+                return self.create_pie_chart(labels_column=x_column, values_column=value_column, **common)
             elif chart_type == "scatter":
-                return self.create_scatter_plot(df, x_column, y_columns[0] if y_columns else None, title, width, height)
+                return self.create_scatter_plot(x_column=x_column, y_column=value_column, **common)
             elif chart_type == "heatmap":
-                return self.create_heatmap(df, title=title, width=width, height=height)
+                return self.create_heatmap(**common)
             elif chart_type == "choropleth":
-                return self.create_choropleth_map(df, x_column, y_columns[0] if y_columns else None, title, width, height)
+                return self.create_choropleth_map(
+                    geo_data=geo_data, location_column=x_column, value_column=value_column, **common
+                )
             elif chart_type == "bivariate_choropleth":
                 if y_columns and len(y_columns) >= 2:
-                    return self.create_bivariate_choropleth(df, x_column, y_columns[0], y_columns[1], title, width, height)
+                    return self.create_bivariate_choropleth(
+                        geo_data=geo_data, location_column=x_column,
+                        value_column1=y_columns[0], value_column2=y_columns[1], **common
+                    )
                 else:
                     raise ValueError("Bivariate choropleth requires at least 2 value columns")
             else:
-                return self.create_bar_chart(df, x_column, y_columns[0] if y_columns else None, title, width, height)
+                return self.create_bar_chart(x_column=x_column, y_column=value_column, **common)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             raise RuntimeError(
@@ -507,7 +520,10 @@ class BaseChartEngine:
         Create a custom chart based on configuration.
 
         Args:
-            chart_config: Complete chart configuration
+            chart_config: Chart type, data, title, and engine column names.
+                Choropleth maps use geo_data, location_column and value_column;
+                bivariate maps use geo_data, location_column and value_columns
+                (a list of two column names). Line charts use y_columns (a list).
             width: Chart width in inches
             height: Chart height in inches
 
@@ -521,35 +537,52 @@ class BaseChartEngine:
                 raise ValueError(f"Chart configuration missing required keys: {required_keys}")
 
             chart_type = chart_config['type']
+            common = dict(data=chart_config['data'], title=chart_config.get('title', ''),
+                          width=width, height=height)
 
             if chart_type == 'bar':
-                return self.create_bar_chart(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
+                return self.create_bar_chart(
+                    x_column=chart_config.get('x_column'), y_column=chart_config.get('y_column'), **common
+                )
             elif chart_type == 'line':
-                return self.create_line_chart(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
+                return self.create_line_chart(
+                    x_column=chart_config.get('x_column'), y_columns=chart_config.get('y_columns'), **common
+                )
             elif chart_type == 'pie':
-                return self.create_pie_chart(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
+                return self.create_pie_chart(
+                    labels_column=chart_config.get('labels_column'),
+                    values_column=chart_config.get('values_column'), **common
+                )
             elif chart_type == 'scatter':
-                return self.create_scatter_plot(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
+                return self.create_scatter_plot(
+                    x_column=chart_config.get('x_column'), y_column=chart_config.get('y_column'),
+                    color_column=chart_config.get('color_column'), **common
+                )
             elif chart_type == 'heatmap':
-                return self.create_heatmap(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
+                return self.create_heatmap(
+                    x_column=chart_config.get('x_column'), y_column=chart_config.get('y_column'),
+                    value_column=chart_config.get('value_column'), **common
+                )
             elif chart_type == 'choropleth':
-                return self.create_choropleth_map(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
+                return self.create_choropleth_map(
+                    geo_data=chart_config.get('geo_data'),
+                    location_column=chart_config.get('location_column'),
+                    value_column=chart_config.get('value_column'), **common
+                )
             elif chart_type == 'bivariate_choropleth':
-                # For bivariate choropleth, we need additional configuration
                 if 'location_column' in chart_config and 'value_columns' in chart_config and len(chart_config['value_columns']) >= 2:
                     return self.create_bivariate_choropleth(
-                        chart_config['data'],
-                        chart_config['location_column'],
-                        chart_config['value_columns'][0],
-                        chart_config['value_columns'][1],
-                        title=chart_config.get('title', ''),
-                        width=width,
-                        height=height
+                        geo_data=chart_config.get('geo_data'),
+                        location_column=chart_config['location_column'],
+                        value_column1=chart_config['value_columns'][0],
+                        value_column2=chart_config['value_columns'][1], **common
                     )
                 else:
                     raise ValueError("Bivariate choropleth requires location_column and value_columns configuration")
             else:
-                return self.create_bar_chart(chart_config['data'], title=chart_config.get('title', ''), width=width, height=height)
+                return self.create_bar_chart(
+                    x_column=chart_config.get('x_column'), y_column=chart_config.get('y_column'), **common
+                )
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
             raise RuntimeError(
