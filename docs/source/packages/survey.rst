@@ -23,9 +23,11 @@ weights are excluded from this calculation. The display base stays unchanged.
 When effective n is below 30, the 95% CI uses Student's t with effective n
 minus one degrees of freedom and requires SciPy; otherwise it uses 1.96.
 An effective sample below two has no estimable CI (``ci=None``). Weights must
-be numeric, present, finite and nonnegative; Decimal, object-dtype, nullable
-and bool weight columns are read as floats, and a missing weight raises
-``CrosstabInputError``. These are weight-only approximations and do not
+be numeric, present, finite and nonnegative; Decimal, Fraction, object-dtype,
+nullable and bool weight columns, including Arrow-backed ones, are read as
+floats. A missing weight, or a weight column of text, dates, durations,
+complex numbers or categories, raises ``CrosstabInputError``. These are
+weight-only approximations and do not
 account for clustering or stratification.
 
 ``chi_square_flag`` uses ``View.respondent_count``, the unweighted frequency

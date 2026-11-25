@@ -6,6 +6,8 @@ Delegates chi-square to siege_utilities.data.cross_tabulation (not reimplemented
 
 from __future__ import annotations
 
+import decimal
+import fractions
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -115,26 +117,56 @@ def build_chain(
         # weight inputs, and a missing weight (None, NaN, pd.NA) is non-finite.
         raw = df[weight_var]
         # pd.to_numeric turns datetime and timedelta columns into nanosecond
-        # counts and astype drops the imaginary part of complex values, so
-        # only real numeric, bool and object columns are converted.
-        convertible = isinstance(raw, pd.Series) and (
-            pd.api.types.is_object_dtype(raw)
-            or (pd.api.types.is_numeric_dtype(raw)
-                and not pd.api.types.is_complex_dtype(raw))
+        # counts, so only numeric, bool and object columns are converted.
+        # is_numeric_dtype is false for an Arrow-backed bool column, and
+        # is_bool_dtype is true for a categorical of bools.
+        convertible = (
+            isinstance(raw, pd.Series)
+            and not isinstance(raw.dtype, pd.CategoricalDtype)
+            and (
+                pd.api.types.is_object_dtype(raw)
+                or pd.api.types.is_numeric_dtype(raw)
+                or pd.api.types.is_bool_dtype(raw)
+            )
         )
         try:
             if not convertible:
                 raise TypeError(f"unsupported weight dtype {getattr(raw, 'dtype', None)}")
-            weights = pd.to_numeric(raw, errors="raise").astype("float64")
-        except (TypeError, ValueError) as exc:
+            try:
+                numeric = pd.to_numeric(raw, errors="raise")
+            except TypeError:
+                if not pd.api.types.is_object_dtype(raw):
+                    raise
+                # pd.to_numeric does not read fractions.Fraction.
+                numeric = pd.to_numeric(
+                    _exact_values_as_floats(raw, (fractions.Fraction,)), errors="raise"
+                )
+            if pd.api.types.is_complex_dtype(numeric):
+                # astype would drop the imaginary part. An object column can
+                # hold complex values, so the check is on the converted values.
+                raise TypeError("complex weights")
+            weights = numeric.astype("float64")
+        except (TypeError, ValueError, OverflowError) as exc:
             raise CrosstabInputError(
                 f"build_chain: weight_var {weight_var!r} must be numeric"
             ) from exc
         if not np.isfinite(weights.to_numpy()).all() or (weights < 0).any():
             raise CrosstabInputError("Survey weights must be finite and nonnegative")
-        # Not df.assign(**{...}): keyword arguments must be strings, and a
-        # frame read without a header has integer column labels.
+        # The float weights, and a float copy of a Decimal metric, go in
+        # columns of their own. The weight or metric column can also be the
+        # row variable or a break variable, and those values must stay as the
+        # caller gave them. Not df.assign(**{...}): keyword arguments must be
+        # strings, and a frame read without a header has integer column labels.
         df = df.copy()
+        values = df[metric] if metric in df.columns else None
+        if isinstance(values, pd.Series) and pd.api.types.is_object_dtype(values):
+            # The builders multiply the metric by the float weights, and
+            # Decimal * float raises TypeError.
+            metric = _unused_label(df, "__build_chain_metric__")
+            df[metric] = _exact_values_as_floats(
+                values, (decimal.Decimal, fractions.Fraction)
+            )
+        weight_var = _unused_label(df, "__build_chain_weight__")
         df[weight_var] = weights
 
     dispatchers = {
@@ -161,6 +193,27 @@ def build_chain(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _unused_label(df: pd.DataFrame, label: str) -> str:
+    """Return ``label``, lengthened until it is not a column of ``df``."""
+    while label in df.columns:
+        label += "_"
+    return label
+
+
+def _exact_values_as_floats(values: pd.Series, kinds: tuple) -> pd.Series:
+    """Return ``values`` as an object column with ``kinds`` instances as floats.
+
+    ``dtype=object`` keeps pandas from inferring datetime64 or timedelta64
+    for a column of Timestamp or Timedelta objects, which ``pd.to_numeric``
+    would then turn into nanosecond counts.
+    """
+    return pd.Series(
+        [float(v) if isinstance(v, kinds) else v for v in values],
+        index=values.index,
+        dtype=object,
+    )
+
 
 def _weighted_counts(
     df: pd.DataFrame,

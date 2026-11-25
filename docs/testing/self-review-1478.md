@@ -7,7 +7,7 @@ Review-Tier: C. This PR changes library code in `siege_utilities/survey/`, and i
 ## Assumptions
 
 - Goal source: ticket #1478. Survey inference must use effective sample sizes and unweighted respondent counts, keep the full top-N denominator, and use weighted means and standard errors for MEAN_SCALE.
-- Roles: author is the PR owner; the independent reviewer is a separate same-family reviewer whose reviews of `a2315d1a` and `f088bc3d` are summarized under "Independent review".
+- Roles: author is the PR owner; the independent reviewer is the reviewer whose reviews of `a2315d1a`, `f088bc3d` and `7ff5e25f` are summarized under "Independent review".
 - The code diff against `origin/develop` after the sync touches `siege_utilities/survey/crosstab.py`, `models.py`, `significance.py`, `docs/source/packages/survey.rst`, two survey notebooks, five survey test files (including `tests/test_survey_weight_dtypes.py` from the fbb280c7 sync) and `CHANGELOG.md`.
 - The #1478 note sits in `CHANGELOG.md` under `### BREAKING` in `[Unreleased]` (see "Sync with develop fbb280c7"). It began under `[4.1.0]` Fixed; at the 71f02b0b sync the only conflict with develop was in that section, settled by keeping the #1478 entry and every develop entry.
 - Pre-author-inventory: NONE. Trivial-against-state: `git diff origin/develop -- CHANGELOG.md` shows only the #1478 entry as an addition after the sync.
@@ -60,6 +60,14 @@ The process-only commits (the 71f02b0b sync and this document) change no library
 - **Datetime, timedelta and complex weights.** `pd.to_numeric` turns datetime64 and timedelta64 columns into nanosecond counts, and `astype("float64")` drops the imaginary part of complex values, so such a weight column returned a table weighted by those numbers, where 6.0.0 raised. Only object columns and real numeric or bool columns are now converted; any other dtype raises `CrosstabInputError` ("must be numeric"), which matches the CHANGELOG and the survey docs. Numeric strings stay accepted, and a categorical column of numbers is rejected, as on develop.
 - **Tests.** Six tests in `tests/test_survey_weight_dtypes.py`: integer column labels give the same cells as string labels for a weighted cross-tab and the same mean and interval for a weighted MEAN_SCALE; datetime64, timedelta64 and complex weights raise `CrosstabInputError`; the caller's Decimal weight column is unchanged after `build_chain`. Before the fix: 5 failed, 1 passed (the unchanged-column case). With the fix: 6 passed.
 
+## Weight and metric column fix (after `7ff5e25f`)
+
+- **Arrow-backed bool weights.** The conversion accepted object columns and columns where `is_numeric_dtype` is true, which is false for `bool[pyarrow]`, so those weights raised "must be numeric" where 6.0.0 and `f088bc3d` returned the table. Bool columns of any backing are now accepted; categorical columns are still rejected.
+- **Complex values in an object column.** An object column of complex values was still converted, dropping the imaginary part, where 6.0.0 raised. Such values now raise `CrosstabInputError`.
+- **Decimal metric columns.** A Decimal metric with Decimal, int, Int64 or bool weights raised `TypeError: unsupported operand type(s) for *: 'decimal.Decimal' and 'float'` in the six count-based table types (CROSS_TAB, SINGLE_RESPONSE, MULTIPLE_RESPONSE, LONGITUDINAL, RANKING, BANNER), where 6.0.0 returned the table. That is the database NUMERIC case the conversion was meant for; it now works, and the caller's Decimal column is unchanged.
+- **Rulings on three further cases.** Fraction weights are accepted, as in 6.0.0. When the weight column is also a break or row variable, its cell keys keep their 6.0.0 form (`w=1`, `w=True`) instead of the converted floats. A weight column labelled `0`, `''` or `False` is applied to counts and bases, consistently with the effective n. A weight too large for float64 raises `CrosstabInputError` instead of a raw `OverflowError`.
+- **Tests.** `tests/test_survey_weight_and_metric_columns.py`, 37 tests: 33 failed and 4 passed at `7ff5e25f` (the four are guards), 37 passed with the fix. The fix is the reviewer's suggested patch, applied unchanged.
+
 ## Findings
 
 | ID | Priority | Description | Resolution |
@@ -70,9 +78,15 @@ The process-only commits (the 71f02b0b sync and this document) change no library
 | F4 | P3 | This artifact contradicted itself on the CHANGELOG section and on "No behavior change" | fixed |
 | F5 | P1 | The float64 weight conversion raised a raw `TypeError` for frames with integer column labels, which 6.0.0 accepted, and turned datetime, timedelta and complex weight columns into numbers instead of raising `CrosstabInputError`; the weights are now assigned by item and only object, real numeric and bool columns are converted | fixed |
 | F6 | P3 | This artifact named Review-Tier A, a cross-family reviewer and a DuckDB 2.0 CI baseline that no longer apply | fixed |
+| F7 | P1 | Arrow-backed bool weight columns raised "must be numeric" after the F5 fix, where 6.0.0 accepted them | fixed |
+| F8 | P1 | Complex values in an object weight column were converted with the imaginary part dropped, where 6.0.0 raised | fixed |
+| F9 | P1 | A Decimal metric column with Decimal, int, Int64 or bool weights raised a raw TypeError in six table types, where 6.0.0 returned the table | fixed |
+| F10 | P2 | Fraction weights, cell keys of a weight column used as a break or row variable, falsy weight-column labels and float64 overflow differed from 6.0.0 or raised raw errors | fixed |
 
 ## Independent review
 
 Independent review of `a2315d1a`: FAIL, recorded at https://github.com/siege-analytics/siege_utilities/pull/1732#issuecomment-7119480819 (weight-column dtypes; CHANGELOG placement). `f088bc3d` addressed both.
 
-Independent review of `f088bc3d`: FAIL on one finding, the weight-column conversion (F5 above), recorded at https://github.com/siege-analytics/siege_utilities/pull/1732#issuecomment-7150907037. The reviewer found everything else in that delta correct and exact-head CI green. This head applies the reviewer's suggested fix and tests unchanged in substance; a delta re-review of this head is pending, not a pass.
+Independent review of `f088bc3d`: FAIL on one finding, the weight-column conversion (F5 above), recorded at https://github.com/siege-analytics/siege_utilities/pull/1732#issuecomment-7150907037. The reviewer found everything else in that delta correct and exact-head CI green. `7ff5e25f` applied the suggested fix.
+
+Independent review of `7ff5e25f`: changes requested on F7 to F9, with F10 ruled in scope, recorded at https://github.com/siege-analytics/siege_utilities/pull/1732#issuecomment-7152068648. This head applies the reviewer's suggested patch unchanged and its 37 tests; a delta re-review of this head is pending, not a pass.

@@ -82,8 +82,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts, so on a weighted table it reports the unweighted sample
   association, not a design-corrected population test. `build_chain` now
   raises `CrosstabInputError` for negative, missing or non-finite weights and
-  for a non-numeric weight column; Decimal, object-dtype, nullable and bool
-  weight columns are read as floats. `column_proportion_test` now raises
+  for a weight column that is not numeric (text, dates, durations, complex
+  numbers or categories); Decimal, Fraction, object-dtype, nullable and bool
+  weight columns, including Arrow-backed ones, are read as floats.
+  `column_proportion_test` now raises
   `SignificanceError` on builder-produced metric-sum tables (a non-unit
   `metric`), not only on manually constructed Views, and chi-square rejects
   metric-sum tables. MEAN_SCALE `ci` is now `None` when the effective n is
