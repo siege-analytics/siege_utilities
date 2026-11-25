@@ -164,7 +164,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   brand text colours or brand margins (#1789, #1588 item 1). Every page now
   carries the header, footer and page number; before, even a template given a
   `template_config` YAML drew them on the first page only, and the first
-  page's frame kept the default width despite its brand margins. A branded
+  page's frame kept the default width despite its brand margins. The
+  `page_numbers` and `header_footer` arguments of
+  `create_comprehensive_report` still have no effect; a branded report draws
+  the header, footer and page number on every page. The brand text colour
+  applies to headings and `BodyText`; the body lines of text sections
+  (`Normal`) and of insight lists (`Bullet`) stay unbranded, as before. A branded
   report's tables also follow
   the brand: the header row takes `colors.primary`, with whichever of
   whitesmoke and `colors.text_color` is readable on it (WCAG AA), the body is
@@ -530,9 +535,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   columns keep their width, the wide ones share the rest, and plain values in
   the narrowed columns wrap. Words and numbers are not broken while the table
   can fit without it. Otherwise text may break inside words down to a 24 pt
-  column, while numbers, and strings that read as numbers (`"1,234,567.89"`,
-  `"$12.50"`, `"45.25%"`, `"(1,234)"`, dates, phone numbers, ZIP codes), are
-  never split. A table that still cannot fit gives each narrowed text column
+  column, while numbers, and strings of up to 40 characters that read as
+  numbers (`"1,234,567.89"`, `"$12.50"`, `"45.25%"`, `"(1,234)"`, dates, phone
+  numbers, ZIP codes), are never split. A table that still cannot fit gives each narrowed text column
   24 pt, is wider than the frame, and logs a warning naming the section. If
   wrapping would make the repeated header row too tall to leave room for rows
   on a page, the table is drawn unfitted, as before, with a warning. Wrapped
@@ -553,7 +558,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TableRowTooTallError` (a `ValueError`) naming the section, row and column,
   and no PDF is written. So does a repeated header row taller than the page
   frame less 72 pt of room for rows, even when every row would fit below it,
-  where 6.0.0 built such a table. Tables keep Helvetica and
+  where 6.0.0 built such a table. Cells are measured with a canvas of the
+  page size, so a flowable that uses the canvas while it is wrapped or split
+  works; one that reads the build in progress (for example
+  `canv._doctemplate.frame`) while it is measured is not supported in table
+  cells. Tables keep Helvetica and
   Helvetica-Bold whatever the brand's `fonts` say; only their colours follow
   the brand. The fitting approach builds on #2002.
 - A branded PDF whose `fonts.default_font` is not registered with ReportLab

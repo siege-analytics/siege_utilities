@@ -4,6 +4,7 @@ Orchestrates the creation of comprehensive reports with charts, tables, and bran
 """
 
 import copy
+import io
 import logging
 import os
 import re
@@ -33,9 +34,11 @@ try:
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import inch
     from reportlab.pdfbase.pdfmetrics import stringWidth
+    from reportlab.pdfgen.canvas import Canvas
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
+    Canvas = None
     Flowable = None
     XPreformatted = None
     TA_CENTER = None
@@ -164,14 +167,24 @@ class _CellWidths:
     unbreakable: float  # numbers are never split; text and flowables can be
 
 
-def _cell_widths(cell: Any, font: tuple, avail_width: float) -> _CellWidths:
+def _measuring_canvas(pagesize: tuple) -> 'Canvas':
+    """A canvas for measuring table cells before the document is built.
+
+    ReportLab hands a flowable the page canvas while it wraps or splits it,
+    and a flowable may use it there (``self.canv.stringWidth(...)``), so the
+    fitting code must hand one over too. This one writes nothing.
+    """
+    return Canvas(io.BytesIO(), pagesize=pagesize)
+
+
+def _cell_widths(cell: Any, font: tuple, avail_width: float, canvas: Any = None) -> _CellWidths:
     """Measure a cell for column fitting."""
     if cell is None:
         return _CellWidths(_CELL_PADDING, _CELL_PADDING, _CELL_PADDING)
     if _is_flowable_cell(cell):
         natural = whole_words = 0.0
         for item in (cell if isinstance(cell, (list, tuple)) else [cell]):
-            width, _ = item.wrapOn(None, avail_width, 1e6)
+            width, _ = item.wrapOn(canvas, avail_width, 1e6)
             line_widths = getattr(item, 'getActualLineWidths0', None)
             narrowest = width
             if line_widths is not None:
@@ -265,7 +278,7 @@ def _cell_text(value: Any) -> str:
 
 
 def _cell_chunks(cell: Any, width: float, height: float, style: 'ParagraphStyle',
-                 title: str, row: int, column: int) -> List[Any]:
+                 title: str, row: int, column: int, canvas: Any = None) -> List[Any]:
     """Cut one cell of a too-tall row into pieces no taller than *height*.
 
     Plain values become preformatted text (lines kept, nothing dropped);
@@ -283,23 +296,23 @@ def _cell_chunks(cell: Any, width: float, height: float, style: 'ParagraphStyle'
         )
 
     if isinstance(cell, (list, tuple)) and _is_flowable_cell(cell):
-        total = sum(item.wrapOn(None, width, 1e6)[1] for item in cell)
+        total = sum(item.wrapOn(canvas, width, 1e6)[1] for item in cell)
         if total <= height:
             return [cell]
         raise too_tall("holds several flowables, which cannot be split")
     flowable = cell if isinstance(cell, Flowable) else _preformatted_cell(_cell_text(cell), style)
     chunks: List[Any] = []
     while True:
-        _, current = flowable.wrapOn(None, width, 1e6)
+        _, current = flowable.wrapOn(canvas, width, 1e6)
         if current <= height:
             chunks.append(flowable)
             return chunks
-        parts = flowable.splitOn(None, width, height)
+        parts = flowable.splitOn(canvas, width, height)
         if len(parts) != 2:
             raise too_tall(f"its {type(flowable).__name__} cannot be split")
         first, rest = parts
-        _, first_height = first.wrapOn(None, width, 1e6)
-        _, rest_height = rest.wrapOn(None, width, 1e6)
+        _, first_height = first.wrapOn(canvas, width, 1e6)
+        _, rest_height = rest.wrapOn(canvas, width, 1e6)
         if first_height > height or rest_height >= current:
             raise too_tall(f"its {type(flowable).__name__} does not split into page-sized parts")
         chunks.append(first)
@@ -826,6 +839,8 @@ class ReportGenerator:
         style = TableStyle(palette.commands())
         avail_width = template.doc.width - _FRAME_PADDING
         avail_height = template.doc.height - _FRAME_PADDING
+        canvas = _measuring_canvas(template.doc.pagesize)
+        canvas._doctemplate = template.doc
 
         flowable_cells = [[_is_flowable_cell(cell) for cell in row] for row in table_data]
         all_flowable = all(all(row) for row in flowable_cells)
@@ -835,7 +850,7 @@ class ReportGenerator:
             columns = [[] for _ in range(max(len(row) for row in table_data))]
             for row, font in zip(table_data, fonts):
                 for index, cell in enumerate(row):
-                    columns[index].append(_cell_widths(cell, font, avail_width))
+                    columns[index].append(_cell_widths(cell, font, avail_width, canvas))
         natural = [max(cell.natural for cell in column) for column in columns]
 
         # Overflowing into the frame's own padding stays inside the margins,
@@ -844,7 +859,7 @@ class ReportGenerator:
         if sum(natural) > template.doc.width + 0.01:
             table, cells = self._fitted_table(
                 table_data, repeat_rows, title, columns, natural, flowable_cells,
-                palette, style, avail_width, avail_height,
+                palette, style, avail_width, avail_height, canvas,
             )
             if table is not None:
                 table_data = cells
@@ -852,12 +867,13 @@ class ReportGenerator:
             table = Table(table_data, repeatRows=repeat_rows)
             table.setStyle(style)
         return self._allow_tall_rows(table, table_data, repeat_rows, palette, style,
-                                     avail_width, avail_height, title)
+                                     avail_width, avail_height, title, canvas)
 
     def _fitted_table(self, table_data: List[List[Any]], repeat_rows: int, title: str,
                       columns: List[List[_CellWidths]], natural: List[float],
                       flowable_cells: List[List[bool]], palette: _TablePalette,
-                      style: 'TableStyle', avail_width: float, avail_height: float):
+                      style: 'TableStyle', avail_width: float, avail_height: float,
+                      canvas: Any = None):
         """Return the table with content-sized columns and its cells, or ``(None, None)``.
 
         ``None`` means the wrapped header row would leave no room on a page
@@ -884,7 +900,7 @@ class ReportGenerator:
         table = Table(cells, colWidths=widths, repeatRows=repeat_rows)
         table.setStyle(style)
         if repeat_rows:
-            table.wrap(avail_width, avail_height)
+            table.wrapOn(canvas, avail_width, avail_height)
             header_height = sum(table._rowHeights[:repeat_rows])
             if header_height > avail_height - _MIN_BODY_HEIGHT:
                 log.warning(
@@ -898,7 +914,8 @@ class ReportGenerator:
 
     def _allow_tall_rows(self, table: 'Table', table_data: List[List[Any]], repeat_rows: int,
                          palette: _TablePalette, style: 'TableStyle',
-                         avail_width: float, avail_height: float, title: str = '') -> 'Table':
+                         avail_width: float, avail_height: float, title: str = '',
+                         canvas: Any = None) -> 'Table':
         """Split a row taller than a page into rows that each fit a page.
 
         Only flowables and multi-line text can make a row that tall, so other
@@ -921,7 +938,7 @@ class ReportGenerator:
 
         if not any(_is_flowable_cell(cell) or multi_line(cell) for row in table_data for cell in row):
             return table
-        table.wrap(avail_width, avail_height)
+        table.wrapOn(canvas, avail_width, avail_height)
         heights = list(table._rowHeights)
         header_height = sum(heights[:repeat_rows])
         if repeat_rows and header_height > avail_height - _MIN_BODY_HEIGHT:
@@ -950,7 +967,7 @@ class ReportGenerator:
                 piece_height /= 2
             pieces = [
                 _cell_chunks(cell, widths[column] - _CELL_PADDING, piece_height,
-                             palette.paragraph_style(index), title, index, column)
+                             palette.paragraph_style(index), title, index, column, canvas)
                 for column, cell in enumerate(row)
             ]
             first = len(rows)
@@ -963,7 +980,7 @@ class ReportGenerator:
 
         table = Table(rows, colWidths=widths, repeatRows=repeat_rows)
         table.setStyle(TableStyle(list(style.getCommands()) + extra_commands))
-        table.wrap(avail_width, avail_height)
+        table.wrapOn(canvas, avail_width, avail_height)
         tallest = max(table._rowHeights[repeat_rows:], default=0.0)
         if tallest > limit + 0.01:
             raise TableRowTooTallError(
