@@ -298,21 +298,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a placeholder. matplotlib and seaborn are now guarded separately
   (`MATPLOTLIB_AVAILABLE`, `SEABORN_AVAILABLE`), and seaborn stays optional:
   heatmaps (`create_heatmap` and `PollingAnalyzer.create_heatmap_visualization`)
-  use it when installed and otherwise draw the same layout with plain
-  matplotlib, and default styling applies the palette and grid through
-  matplotlib. The root chart functions (`siege_utilities.create_heatmap` and
-  the others from `chart_generator`) no longer list seaborn as a required
+  use it when installed and otherwise draw a comparable heatmap with plain
+  matplotlib (its tick labels are not rotated or thinned, so many or long
+  labels can overlap), and default styling applies the palette and grid
+  through matplotlib. The root chart functions (`siege_utilities.create_heatmap`
+  and the others from `chart_generator`) no longer list seaborn as a required
   dependency. A placeholder that stands in for a chart now emits a
   `UserWarning` (and a log warning) naming the module that is actually
   missing, including the blank 1x1 image returned when matplotlib itself is
-  absent.
+  absent. Under `-W error::UserWarning`, a chart call with a missing optional
+  module therefore now raises instead of returning a placeholder.
 - `create_report_generator()` and `create_powerpoint_generator()` no longer
   raise `FileNotFoundError` when the user has no profile (#2042). Each now
   builds its generator with the constructor's own default output directory
   (`Path.cwd() / "reports"` for `ReportGenerator`, `Path.cwd() /
   "presentations"` for `PowerPointGenerator`, the same as calling the
   constructor alone) and logs a warning naming the missing profile and the
-  directory used. `get_report_output_directory()` is unchanged.
+  directory used. `get_report_output_directory()` is unchanged. With
+  python-pptx missing and no profile, `create_powerpoint_generator()` now
+  raises the constructor's `ImportError` naming python-pptx, where it
+  previously raised `FileNotFoundError`.
 - Report facade charts and sample tables, three follow-ups to the facade PDF
   change of #1461:
   - a NumPy complex chart value (`numpy.complex64`, `numpy.complex128`) now

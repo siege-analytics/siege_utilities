@@ -188,8 +188,8 @@ def test_polling_heatmap_renders_without_seaborn():
     assert result["texts"] == ["12", "20", "30", "5"]
 
 
-def test_matplotlib_heatmap_fallback_matches_seaborn_layout():
-    """Without seaborn, cells, labels and annotations follow seaborn's layout."""
+def test_matplotlib_heatmap_fallback_draws_cells_labels_and_annotations():
+    """Without seaborn, the fallback draws cells, labels, annotations and a colorbar."""
     import matplotlib
 
     matplotlib.use("Agg")

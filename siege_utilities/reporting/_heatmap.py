@@ -1,10 +1,12 @@
 """Plain-matplotlib heatmap used when seaborn is not installed (#2041).
 
 seaborn is an optional styling dependency. Heatmaps call ``sns.heatmap`` when
-seaborn is importable and fall back to :func:`matplotlib_heatmap`, which
-reproduces seaborn's layout: cells on a unit grid with the first row at the
-top, tick labels centred on cells, axis labels from the index/column names,
-per-cell annotations with a contrasting text colour, and a colorbar.
+seaborn is importable and fall back to :func:`matplotlib_heatmap`, which draws
+a comparable heatmap with plain matplotlib: cells on a unit grid with the first
+row at the top, tick labels centred on cells, axis labels from the
+index/column names, per-cell annotations with a contrasting text colour, and a
+colorbar. Unlike seaborn it does not rotate or thin tick labels, so many or
+long labels can overlap.
 """
 
 from __future__ import annotations
