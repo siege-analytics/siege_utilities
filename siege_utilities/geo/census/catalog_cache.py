@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import quote as _quote
 
+from siege_utilities.config._home import _home_directory
+
 from .catalog import (
     CensusCatalog,
     CensusCatalogDataset,
@@ -37,9 +39,6 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_CACHE_DIR = (
-    Path.home() / ".siege_utilities" / "cache" / "census_catalog"
-)
 _DEFAULT_TTL_DAYS = 30
 
 
@@ -203,7 +202,10 @@ class CatalogCache:
         cache_dir: Optional[Path] = None,
         ttl_days: int = _DEFAULT_TTL_DAYS,
     ):
-        self.cache_dir = Path(cache_dir) if cache_dir else _DEFAULT_CACHE_DIR
+        self.cache_dir = (
+            Path(cache_dir) if cache_dir
+            else _home_directory() / ".siege_utilities" / "cache" / "census_catalog"
+        )
         self.ttl_days = ttl_days
 
     def _cache_path(self, dataset: str, year: Optional[int]) -> Path:

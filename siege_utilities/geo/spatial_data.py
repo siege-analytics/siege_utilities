@@ -35,6 +35,7 @@ _ALLOW_INSECURE_SSL = os.environ.get("SIEGE_INSECURE_SSL", "").lower() in ("1", 
 from ..files.remote import download_file, generate_local_path_from_url
 from ..files.paths import unzip_file_to_directory, ensure_path_exists
 from ..config.user_config import get_user_config, get_download_directory
+from ..config._home import _home_directory
 
 # Import centralized constants
 from ..config import (
@@ -233,7 +234,10 @@ _VTD_PL_STATE_NAMES: Dict[str, str] = {
 # Census inventory: crawled directory map + disk-backed fallback
 # ---------------------------------------------------------------------------
 
-_DEFAULT_INVENTORY_PATH = Path.home() / ".cache" / "siege_utilities" / "census_inventory.json"
+def _default_inventory_path() -> Path:
+    return _home_directory() / ".cache" / "siege_utilities" / "census_inventory.json"
+
+
 _TIGER_BASE = "https://www2.census.gov/geo/tiger/"
 _GENZ_BASE = "https://www2.census.gov/geo/tiger/"   # GENZ lives under the same tree
 
@@ -331,7 +335,7 @@ def update_census_inventory(
                 inventory["genz"][str(year)] = stems
                 log.info("census inventory: GENZ%s → %d files", year, len(stems))
 
-    save_path = Path(save_path or _DEFAULT_INVENTORY_PATH)
+    save_path = Path(save_path or _default_inventory_path())
     save_path.parent.mkdir(parents=True, exist_ok=True)
     with atomic_write_path(save_path) as tmp:
         with open(tmp, "w", encoding="utf-8") as fh:
@@ -347,7 +351,7 @@ def load_census_inventory(path: Optional[Path] = None) -> Optional[dict]:
         SpatialDataError: If the file exists but cannot be parsed.
     """
     import json
-    p = Path(path or _DEFAULT_INVENTORY_PATH)
+    p = Path(path or _default_inventory_path())
     if not p.exists():
         return None
     try:
