@@ -2,6 +2,7 @@
 
 import inspect
 import json
+import logging
 import re
 
 import pytest
@@ -30,6 +31,10 @@ def test_password_roundtrip_uses_reported_env_var(
     config = create_database_config(
         name, "postgres", "localhost", 5432, "db", "user", "original-secret",
     )
+    # Django's disable_existing_loggers must not make the caplog assertions
+    # below vacuous or empty in a randomized full run (#2053).
+    monkeypatch.setattr(logging.getLogger("siege_utilities"), "disabled", False)
+    caplog.set_level(logging.WARNING, logger="siege_utilities")
     save_database_config(config, str(tmp_path))
 
     saved_text = (tmp_path / f"database_{name}.json").read_text()
