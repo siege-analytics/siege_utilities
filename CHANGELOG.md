@@ -158,7 +158,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   adding exactly one slide per argument (template masters and layouts are
   kept), where v6.0.0 left the template's or default deck's slides after
   the generated ones; if those slides cannot be read or deleted, the error
-  propagates and no argument slides are added. Google Docs `insert_text` and
+  propagates and no argument slides are added. When the template's first
+  slide uses a master other than the presentation's first master, that slide
+  is kept until the argument slides have been added after it, so they use its
+  master, and is then removed; if that last removal fails, the error
+  propagates with the argument slides already in place. Google Docs `insert_text` and
   `insert_paragraph` compute text and heading style ranges in UTF-16 code
   units, so ranges no longer fall short after non-BMP characters such as
   emoji. `read_document_text` requests all tabs, visits child tabs and nested

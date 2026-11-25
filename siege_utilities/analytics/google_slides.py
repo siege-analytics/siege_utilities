@@ -170,6 +170,33 @@ def _first_slide_blank_layout_id(presentation: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def _anchor_slide_id(presentation: Dict[str, Any]) -> Optional[str]:
+    """Return the first slide's ID when its master is not the first master.
+
+    The Slides API resolves a new slide's layout against the master of the
+    previous slide, or against the presentation's first master when there are
+    no slides, and rejects a layout that is not in that master. When the first
+    slide uses another master, that slide is kept while the report slides are
+    added after it, so their layout resolves against its master. ``None``
+    (no slides, no masters, no master on the first slide, or the first master
+    itself) means no anchor is needed.
+    """
+    slides = presentation.get("slides")
+    masters = presentation.get("masters")
+    if not isinstance(slides, list) or not slides or not isinstance(masters, list) or not masters:
+        return None
+    first_slide = slides[0]
+    if not isinstance(first_slide, dict) or not isinstance(masters[0], dict):
+        return None
+    slide_master = (first_slide.get("slideProperties") or {}).get("masterObjectId")
+    first_master = masters[0].get("objectId")
+    if not isinstance(slide_master, str) or not isinstance(first_master, str):
+        return None
+    if slide_master == first_master:
+        return None
+    return first_slide.get("objectId")
+
+
 def insert_text(
     client,
     presentation_id: str,
@@ -655,14 +682,19 @@ def create_report_from_arguments(
 
     Removes any existing content slides from the new presentation or theme
     copy before adding one slide per argument. Theme masters and layouts are
-    preserved; the source template is unchanged. Each report slide uses the
-    BLANK layout of the master that the first initial slide uses, looked up
-    before the initial slides are deleted, so a template whose slides use a
-    master other than the first one keeps its theme; without such a layout the
-    predefined ``BLANK`` layout is used. An empty argument list produces a
+    preserved; the source template is unchanged. When the first initial slide
+    uses the presentation's first master, the report slides request that
+    master's BLANK layout by object ID (or the predefined ``BLANK`` layout when
+    there is none). When it uses another master, that slide is kept as an
+    anchor while the report slides are added after it with the predefined
+    ``BLANK`` layout, which the Slides API resolves against the anchor's
+    master; the anchor is then deleted. An empty argument list produces a
     presentation with no content slides. Failure to read or delete the initial
-    slides propagates before report slides are added. The new presentation is
-    left in Drive when this happens and must be removed by the caller.
+    slides propagates before report slides are added, except for the anchor,
+    which is deleted after them; if that delete fails, the error propagates
+    and the report slides stay in the presentation with the anchor. The new
+    presentation is left in Drive when either happens and must be removed by
+    the caller.
 
     Public exposure of figures:
         The Slides API can only insert an image from a URL that is reachable
@@ -699,20 +731,27 @@ def create_report_from_arguments(
         pres_id = create_presentation(client, title, folder_id=folder_id)
 
     presentation = get_presentation(client, pres_id)
-    blank_layout_id = _first_slide_blank_layout_id(presentation)
+    # When the first slide uses a master other than the first one, keep it as
+    # an anchor: report slides are added after it with the predefined BLANK
+    # layout, which resolves against the anchor's master, and the anchor is
+    # deleted afterwards. Every other deck is emptied first.
+    anchor_id = _anchor_slide_id(presentation) if arguments else None
+    blank_layout_id = None if anchor_id else _first_slide_blank_layout_id(presentation)
     delete_requests = [
         {"deleteObject": {"objectId": slide["objectId"]}}
         for slide in presentation.get("slides", [])
+        if slide["objectId"] != anchor_id
     ]
     if delete_requests:
         batch_update(client, pres_id, delete_requests)
         log.debug("Deleted %d initial slides from report %s", len(delete_requests), pres_id)
 
+    first_index = 1 if anchor_id else 0
     failures = []
     for i, argument in enumerate(arguments):
         try:
             _build_argument_slide(
-                client, pres_id, argument, slide_index=i,
+                client, pres_id, argument, slide_index=first_index + i,
                 folder_id=folder_id, publish_figures=publish_figures,
                 blank_layout_id=blank_layout_id,
             )
@@ -720,6 +759,10 @@ def create_report_from_arguments(
             headline = getattr(argument, "headline", "?")
             log.error("Failed to create slide %d for argument %r: %s", i, headline, exc)
             failures.append((i, headline, repr(exc)))
+
+    if anchor_id:
+        batch_update(client, pres_id, [{"deleteObject": {"objectId": anchor_id}}])
+        log.debug("Deleted anchor slide %s from report %s", anchor_id, pres_id)
 
     if failures:
         # SU-1: a report missing slides is not a success. Do not return the

@@ -126,52 +126,124 @@ def _layout(object_id, master_id, name):
     return {"objectId": object_id, "layoutProperties": {"masterObjectId": master_id, "name": name}}
 
 
-@pytest.mark.parametrize(
-    "slide_master, layouts, expected_reference",
-    [
-        (
-            "brand",
-            [_layout("leftover_blank", "leftover", "BLANK"), _layout("brand_title", "brand", "TITLE"),
-             _layout("brand_blank", "brand", "BLANK")],
-            {"layoutId": "brand_blank"},
-        ),
-        (
-            "brand",
-            [_layout("leftover_blank", "leftover", "BLANK"), _layout("brand_title", "brand", "TITLE")],
-            {"predefinedLayout": "BLANK"},
-        ),
-        (None, [_layout("leftover_blank", "leftover", "BLANK")], {"predefinedLayout": "BLANK"}),
-    ],
-    ids=["second-master-blank-pinned", "no-blank-on-slide-master", "slide-without-master"],
-)
-def test_report_slides_keep_the_template_slide_master(workspace, slide_master, layouts, expected_reference):
+class LayoutNotInCurrentMasterError(Exception):
+    """Stands in for the HttpError 400 the Slides API documents for a foreign layout."""
+
+    status = 400
+
+
+TWO_MASTER_LAYOUTS = [
+    ("leftover_blank", "leftover", "BLANK"),
+    ("brand_title", "brand", "TITLE"),
+    ("brand_blank", "brand", "BLANK"),
+]
+
+
+def _strict_template(workspace, masters, layouts, slide_master):
+    """Copy of a two-slide template whose createSlide follows the documented master rule.
+
+    A new slide's layout is resolved against the master of the previous slide, the
+    first slide's master at index 0, or the first master when there are no slides;
+    a layout reference not found in that master raises a 400-style error.
+    """
     client, services = workspace
     presentations = services["slides"].presentations.return_value
     services["drive"].files.return_value.copy.return_value.execute.return_value = {"id": "report"}
-    slide_properties = {"masterObjectId": slide_master} if slide_master else {}
-    presentations.get.return_value.execute.return_value = {
-        "slides": [
-            {"objectId": f"sample_{index}", "slideProperties": dict(slide_properties)}
-            for index in range(2)
-        ],
-        "masters": [{"objectId": "leftover"}, {"objectId": "brand"}],
-        "layouts": layouts,
-    }
+    deck = [{"objectId": f"sample_{index}", "master": slide_master} for index in range(2)]
     requests = []
-    presentations.batchUpdate.side_effect = lambda presentationId, body: (
-        requests.extend(body["requests"]) or MagicMock(execute=lambda: {"replies": []})
-    )
-    arguments = [Argument(f"Argument {index}", "Text", None, TableType.SINGLE_RESPONSE) for index in range(3)]
 
-    google_slides.create_report_from_arguments(client, "Report", arguments, theme_presentation_id="template")
+    def snapshot():
+        return {
+            "slides": [
+                {"objectId": slide["objectId"],
+                 "slideProperties": {"masterObjectId": slide["master"]} if slide["master"] else {}}
+                for slide in deck
+            ],
+            "masters": [{"objectId": master} for master in masters],
+            "layouts": [_layout(*layout) for layout in layouts],
+        }
 
-    kinds = [next(iter(request)) for request in requests]
+    def current_master(index):
+        if not deck:
+            return masters[0]
+        slide = deck[0] if index == 0 else deck[min(index, len(deck)) - 1]
+        return slide["master"] or masters[0]
+
+    def batch_update(presentationId, body):
+        def execute():
+            for request in body["requests"]:
+                requests.append(request)
+                if "deleteObject" in request:
+                    deck[:] = [s for s in deck if s["objectId"] != request["deleteObject"]["objectId"]]
+                elif "createSlide" in request:
+                    create = request["createSlide"]
+                    index = create.get("insertionIndex", len(deck))
+                    master = current_master(index)
+                    reference = create["slideLayoutReference"]
+                    if "layoutId" in reference:
+                        found = any(lid == reference["layoutId"] and lm == master for lid, lm, _ in layouts)
+                    else:
+                        found = any(lm == master and name == reference["predefinedLayout"]
+                                    for _, lm, name in layouts)
+                    if not found:
+                        raise LayoutNotInCurrentMasterError(f"400: {reference} is not in master {master}")
+                    deck.insert(index, {"objectId": create["objectId"], "master": master})
+            return {"replies": []}
+
+        return MagicMock(execute=execute)
+
+    presentations.get.return_value.execute.side_effect = snapshot
+    presentations.batchUpdate.side_effect = batch_update
+    return client, deck, requests
+
+
+def _arguments(count):
+    return [Argument(f"Argument {index}", "Text", None, TableType.SINGLE_RESPONSE) for index in range(count)]
+
+
+@pytest.mark.parametrize(
+    "masters, layouts, slide_master, expected_master",
+    [
+        (["leftover", "brand"], TWO_MASTER_LAYOUTS, "brand", "brand"),
+        (["leftover", "brand"], TWO_MASTER_LAYOUTS, "leftover", "leftover"),
+        (["brand"], [("brand_blank", "brand", "BLANK")], "brand", "brand"),
+        (["leftover", "brand"], [("leftover_blank", "leftover", "BLANK")], None, "leftover"),
+    ],
+    ids=["slides-on-second-master", "slides-on-first-master", "one-master", "slide-without-master"],
+)
+def test_report_slides_use_the_template_slide_master_under_the_documented_rule(
+    workspace, masters, layouts, slide_master, expected_master,
+):
+    client, deck, _ = _strict_template(workspace, masters, layouts, slide_master)
+
+    google_slides.create_report_from_arguments(client, "Report", _arguments(3), theme_presentation_id="template")
+
+    assert len(deck) == 3
+    assert not any(slide["objectId"].startswith("sample_") for slide in deck)
+    assert [slide["master"] for slide in deck] == [expected_master] * 3
+
+
+def test_anchor_slide_is_kept_until_the_report_slides_exist(workspace):
+    client, _, requests = _strict_template(workspace, ["leftover", "brand"], TWO_MASTER_LAYOUTS, "brand")
+
+    google_slides.create_report_from_arguments(client, "Report", _arguments(3), theme_presentation_id="template")
+
     created = [request["createSlide"] for request in requests if "createSlide" in request]
-    assert kinds[:2] == ["deleteObject", "deleteObject"]
-    assert "deleteObject" not in kinds[2:]
-    assert len(created) == 3
-    assert [slide["slideLayoutReference"] for slide in created] == [expected_reference] * 3
-    assert [slide["insertionIndex"] for slide in created] == [0, 1, 2]
+    deleted = [request["deleteObject"]["objectId"] for request in requests if "deleteObject" in request]
+    assert deleted == ["sample_1", "sample_0"]
+    assert requests[0] == {"deleteObject": {"objectId": "sample_1"}}
+    assert requests[-1] == {"deleteObject": {"objectId": "sample_0"}}
+    assert [slide["insertionIndex"] for slide in created] == [1, 2, 3]
+    assert [slide["slideLayoutReference"] for slide in created] == [{"predefinedLayout": "BLANK"}] * 3
+
+
+def test_empty_report_on_a_second_master_template_keeps_no_anchor(workspace):
+    client, deck, requests = _strict_template(workspace, ["leftover", "brand"], TWO_MASTER_LAYOUTS, "brand")
+
+    google_slides.create_report_from_arguments(client, "Report", [], theme_presentation_id="template")
+
+    assert deck == []
+    assert requests == [{"deleteObject": {"objectId": "sample_0"}}, {"deleteObject": {"objectId": "sample_1"}}]
 
 
 @pytest.mark.parametrize("index", [1, 7])
