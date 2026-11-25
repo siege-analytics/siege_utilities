@@ -26,6 +26,7 @@ Example usage:
 """
 
 import logging
+import sys
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -61,6 +62,22 @@ __all__ = [
 ]
 
 log = logging.getLogger(__name__)
+
+
+def _cache_read_errors() -> tuple:
+    """Errors that make a cached crosswalk unreadable rather than wrong.
+
+    pyarrow is optional, so it is not imported here. pyarrow raises its base
+    ``ArrowException`` (neither ``OSError`` nor ``ValueError``) for some
+    corrupt files, for example invalid UTF-8 in a string column; when it has
+    raised anything, ``pyarrow.lib`` is already imported, so its class is
+    taken from ``sys.modules``.
+    """
+    errors: tuple = (ImportError, OSError, ValueError)
+    arrow_exception = getattr(sys.modules.get("pyarrow.lib"), "ArrowException", None)
+    if arrow_exception is not None:
+        errors += (arrow_exception,)
+    return errors
 
 
 # =============================================================================
@@ -213,8 +230,9 @@ class CrosswalkClient:
 
         # Check cache
         if not force_refresh and self._is_cache_valid(cache_file):
-            log.info(f"Loading crosswalk from cache: {cache_file.name}")
-            return pd.read_parquet(cache_file)
+            cached = self._load_from_cache(cache_file)
+            if cached is not None:
+                return cached
 
         # Download and process
         log.info(f"Downloading {geo_level} crosswalk for {source_year}->{target_year}")
@@ -444,12 +462,43 @@ class CrosswalkClient:
 
         return df
 
+    def _load_from_cache(self, cache_file: Path) -> Optional[pd.DataFrame]:
+        """Read a cached crosswalk; return None (a cache miss) when it cannot be read.
+
+        The cache is optional, derived data: the caller downloads the
+        crosswalk instead. A read fails with ``ImportError`` when no parquet
+        engine is installed (the ``[geo]`` extra does not install pyarrow or
+        fastparquet), and with ``OSError``, ``ValueError`` (pyarrow's
+        ``ArrowInvalid`` is a ``ValueError``) or pyarrow's base
+        ``ArrowException`` when the file is unreadable or corrupt.
+        """
+        log.info(f"Loading crosswalk from cache: {cache_file.name}")
+        try:
+            return pd.read_parquet(cache_file)
+        except _cache_read_errors() as e:
+            log.warning(
+                "Cannot read crosswalk cache %s (%s: %s); downloading instead. "
+                "If no parquet engine is installed, install pyarrow to use the "
+                "crosswalk cache.", cache_file.name, type(e).__name__, e,
+            )
+            return None
+
     def _save_to_cache(self, df: pd.DataFrame, cache_file: Path) -> None:
-        """Save DataFrame to cache as parquet."""
+        """Save DataFrame to cache as parquet.
+
+        A failed cache write is logged and skipped, so the computed crosswalk
+        is still returned. That includes a missing parquet engine: the
+        ``[geo]`` extra does not install pyarrow or fastparquet.
+        """
         try:
             with atomic_write_path(cache_file) as tmp:
                 df.to_parquet(tmp, index=False)
             log.debug(f"Cached crosswalk to: {cache_file}")
+        except ImportError as e:
+            log.warning(
+                "Crosswalk not cached because no parquet engine is installed "
+                "(%s). Install pyarrow to enable the crosswalk cache.", e,
+            )
         except (OSError, ValueError, TypeError) as e:
             log.warning(f"Failed to cache crosswalk: {e}")
 

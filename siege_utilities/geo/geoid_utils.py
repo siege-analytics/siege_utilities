@@ -502,27 +502,31 @@ def extract_parent_geoid(
     """
     Extract a parent GEOID from a child GEOID.
 
-    Supports extracting state, county, or tract as the parent level.
-    Other parent levels raise ValueError.
+    Supports extracting state, county, or tract as the parent level, and
+    block group as the parent of a block (the first 12 digits of the
+    15-digit block GEOID). Other parent levels raise ValueError.
 
     Args:
         geoid: Child GEOID
         child_geography: Geography level of the input GEOID
         parent_geography: Target parent level (``"state"``, ``"county"``,
-            or ``"tract"``)
+            ``"tract"``, or ``"block_group"`` from a block)
 
     Returns:
         Parent GEOID
 
     Raises:
         ValueError: If *parent_geography* is not one of the supported
-            parent levels (state, county, tract).
+            parent levels (state, county, tract), or is block group for a
+            child that is not a block.
 
     Example:
         >>> extract_parent_geoid("06037101100", "tract", "county")
         '06037'
         >>> extract_parent_geoid("060371011001", "block_group", "state")
         '06'
+        >>> extract_parent_geoid("010030108001011", "block", "block_group")
+        '010030108001'
     """
     components = parse_geoid(geoid, child_geography)
 
@@ -534,6 +538,10 @@ def extract_parent_geoid(
         return components['state'] + components['county']
     elif parent_lower == 'tract':
         return components['state'] + components['county'] + components['tract']
+    elif parent_lower == 'block_group' and 'block' in components:
+        # The first digit of a block's 4-digit number is its block group.
+        return (components['state'] + components['county'] + components['tract']
+                + components['block'][0])
     else:
         raise ValueError(f"Cannot extract {parent_geography} from {child_geography}")
 
