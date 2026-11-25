@@ -98,7 +98,9 @@
     "update_connection_profile",
     "verify_connection_profile",
     "write_df_to_parquet",
-    "export_prepared_df_as_csv_to_path_using_delimiter"
+    "export_prepared_df_as_csv_to_path_using_delimiter",
+    "ReportGenerator",
+    "AnalyticsReportGenerator"
   ],
   "kind_changes": [
     "BaseReportTemplate",

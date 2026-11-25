@@ -3,6 +3,7 @@ Base ReportLab template for siege_utilities reporting system.
 Enhanced version of the existing template with additional features.
 """
 
+import copy
 import logging
 import yaml
 from pathlib import Path
@@ -34,6 +35,8 @@ except ImportError:
     HexColor = None
 from typing import Dict, Optional
 
+from .._brand_colors import BRANDING_SECTIONS, brand_color, validate_branding_layout
+from ..client_branding import BrandingConfigError
 from .._markup import _escape_paragraph
 
 # Import PIL for image dimension auto-calculation
@@ -56,21 +59,44 @@ class BaseReportTemplate:
     Enhanced version with additional features and better error handling.
     """
 
-    def __init__(self, output_filename: str, branding_config_path: Optional[Path] = None, 
-                 page_size: str = "letter", margins: Optional[Dict[str, float]] = None):
+    def __init__(self, output_filename: str, branding_config_path: Optional[Path] = None,
+                 page_size: str = "letter", margins: Optional[Dict[str, float]] = None,
+                 branding_config: Optional[dict] = None,
+                 fetch_remote_assets: bool = False):
         """
         Initialize the base report template.
-        
+
         Args:
             output_filename: Name of the output PDF file
             branding_config_path: Path to branding configuration YAML file
             page_size: Page size ('letter' or 'A4')
             margins: Custom margins in inches (top, bottom, left, right)
+            branding_config: Branding dictionary (the shape
+                ``ClientBrandingManager`` returns), used instead of a YAML
+                file. It is copied. Without either, the report is unbranded:
+                no header, footer or page numbers.
+            fetch_remote_assets: Download ``http(s)`` logo URLs from the
+                branding. Off by default, so building a PDF makes no network
+                calls: remote logos are left out (logged once per document)
+                and local logo paths still work.
+
+        Raises:
+            ImportError: If ReportLab is not installed.
+            ValueError: If both ``branding_config_path`` and
+                ``branding_config`` are given.
+            BrandingColorError: If a branding text colour is not a colour.
+            BrandingConfigError: If the branding is not a mapping, a layout
+                entry has the wrong shape, or the margins leave less than
+                72 pt for the page frame either way.
         """
         if not REPORTLAB_AVAILABLE:
             raise ImportError(
                 "reportlab is required for PDF report generation but is not installed. "
                 "Install it with: pip install reportlab"
+            )
+        if branding_config_path and branding_config:
+            raise ValueError(
+                "Pass either branding_config_path or branding_config, not both"
             )
         self.output_filename = output_filename
         self.branding_config_path = branding_config_path
@@ -89,7 +115,17 @@ class BaseReportTemplate:
         )
         
         self.styles = getSampleStyleSheet()
-        self.branding_config = self._load_config() if branding_config_path else {}
+        if branding_config_path:
+            loaded = self._load_config()
+        else:
+            loaded = copy.deepcopy(branding_config)
+        self.branding_config = self._checked_branding(loaded)
+        self.fetch_remote_assets = fetch_remote_assets
+        # Images that could not be fetched, so each is tried once per document,
+        # and downloaded images by URL (the saved name can differ from the URL).
+        self._unavailable_images = set()
+        self._fetched_images = {}
+        self._remote_skip_logged = False
         self._register_fonts()
         self._add_custom_styles()
         self._doc_setup()
@@ -187,33 +223,61 @@ class BaseReportTemplate:
         except (OSError, ValueError, KeyError, AttributeError) as e:
             log.error(f"Error in font registration: {e}")
 
+    @staticmethod
+    def _checked_branding(branding) -> dict:
+        """Validate the branding and give unset (``None``) sections as empty mappings.
+
+        Raises:
+            BrandingConfigError: If the branding or one of its entries has
+                the wrong shape.
+        """
+        if branding is None:
+            return {}
+        if not isinstance(branding, dict):
+            raise BrandingConfigError(f"branding must be a mapping, got {branding!r}")
+        validate_branding_layout(branding)
+        for name in BRANDING_SECTIONS:
+            if name in branding and branding[name] is None:
+                branding[name] = {}
+        return branding
+
+    @staticmethod
+    def _font_registered(font_name: str) -> bool:
+        """True if ReportLab can draw *font_name* (a standard or registered font)."""
+        return font_name in pdfmetrics.standardFonts or font_name in pdfmetrics.getRegisteredFontNames()
+
     def _add_custom_styles(self):
         """Adds or updates custom paragraph styles based on branding config."""
         if not self.branding_config:
             return
             
-        colors = self.branding_config.get('colors', {})
-        fonts = self.branding_config.get('fonts', {})
+        colors = self.branding_config.get('colors') or {}
+        fonts = self.branding_config.get('fonts') or {}
 
-        default_text_color = HexColor(colors.get('text_color', '#000000'))
+        default_text_color = brand_color(colors.get('text_color', '#000000'), 'text_color')
+
+        # Apply the brand font only if it is registered (e.g. Liberation-Serif
+        # is registered only where its files are installed); otherwise
+        # ReportLab raises KeyError mid-build.
+        font_family = fonts.get('default_font') or 'Helvetica'
+        if not self._font_registered(font_family):
+            log.warning("Branding font %r is not registered; using Helvetica", font_family)
+            font_family = 'Helvetica'
+        bold_font = f"{font_family}-Bold"
+        heading_font = bold_font if self._font_registered(bold_font) else font_family
 
         # Update existing styles from branding config
         for style_name in ['h1', 'h2', 'h3', 'BodyText']:
             if style_name in self.styles:
                 style = self.styles[style_name]
                 style.textColor = default_text_color
-                
-                # Apply font from branding, ensuring it's registered
-                font_family = fonts.get('default_font', 'Helvetica')
-                if style_name in ['h1', 'h2', 'h3']:
-                    style.fontName = f"{font_family}-Bold" if pdfmetrics.getFont(f"{font_family}-Bold") else font_family
-                else:
-                    style.fontName = font_family
+                style.fontName = heading_font if style_name in ['h1', 'h2', 'h3'] else font_family
 
-                if style_name in fonts and 'font_size' in fonts[style_name]:
-                    style.fontSize = fonts[style_name]['font_size']
-                if style_name in fonts and 'leading' in fonts[style_name]:
-                    style.leading = fonts[style_name]['leading']
+                metrics = fonts.get(style_name) or {}
+                if metrics.get('font_size') is not None:
+                    style.fontSize = metrics['font_size']
+                if metrics.get('leading') is not None:
+                    style.leading = metrics['leading']
                 log.debug(f"Updating existing style: {style_name}")
 
         # Add new custom styles
@@ -233,20 +297,39 @@ class BaseReportTemplate:
         self.styles.add(ParagraphStyle(name='HeaderFooter',
                                        parent=self.styles['Normal'],
                                        fontSize=9,
-                                       textColor=HexColor(colors.get('header_footer_text_color', '#444444'))))
+                                       textColor=brand_color(colors.get('header_footer_text_color', '#444444'),
+                                                             'header_footer_text_color')))
 
         log.info("Custom styles added/updated in stylesheet.")
 
     def _doc_setup(self):
-        """Sets up document margins from branding config."""
+        """Sets up document margins from branding config.
+
+        Raises:
+            BrandingConfigError: If the margins leave less than 72 pt for the
+                page frame across or down.
+        """
         if not self.branding_config:
             return
-            
-        margins = self.branding_config.get('page_margins', {})
-        self.doc.leftMargin = margins.get('left', 1) * inch
-        self.doc.rightMargin = margins.get('right', 1) * inch
-        self.doc.topMargin = margins.get('top', 1) * inch
-        self.doc.bottomMargin = margins.get('bottom', 1) * inch
+
+        margins = self.branding_config.get('page_margins') or {}
+
+        def margin(side):
+            value = margins.get(side)
+            return (1 if value is None else value) * inch
+
+        self.doc.leftMargin = margin('left')
+        self.doc.rightMargin = margin('right')
+        self.doc.topMargin = margin('top')
+        self.doc.bottomMargin = margin('bottom')
+        # SimpleDocTemplate derives width/height from the margins only in
+        # _calc(); without it the frame and table fitting use stale sizes.
+        self.doc._calc()
+        if self.doc.width < inch or self.doc.height < inch:
+            raise BrandingConfigError(
+                f"branding page_margins {margins!r} leave a {self.doc.width:.0f} x "
+                f"{self.doc.height:.0f} pt page frame; at least 72 pt each way is needed"
+            )
         log.info("Document margins set.")
 
     def _create_cache_dir(self):
@@ -259,9 +342,28 @@ class BaseReportTemplate:
     def _get_image_data_for_reportlab(self, image_source: str):
         """
         Handles image loading for ReportLab. Supports local paths and URLs,
-        with caching for URLs. Returns the path to the image data.
+        with caching for URLs. Returns the path to the image data, or None
+        (logged) when it cannot be had. URLs are used only when the template
+        was created with ``fetch_remote_assets=True``; otherwise they are
+        skipped without any network or cache access. A URL that failed is not
+        retried for the rest of this document, so a missing logo costs one
+        attempt rather than one per page.
         """
-        if image_source.startswith(('http://', 'https://')):
+        if image_source in self._unavailable_images:
+            return None
+        if image_source in self._fetched_images:
+            return self._fetched_images[image_source]
+        is_remote = image_source.startswith(('http://', 'https://'))
+        if is_remote and not self.fetch_remote_assets:
+            self._unavailable_images.add(image_source)
+            if not self._remote_skip_logged:
+                self._remote_skip_logged = True
+                log.info(
+                    "Remote branding images (such as %s) are not downloaded; "
+                    "pass fetch_remote_assets=True to include them", image_source,
+                )
+            return None
+        if is_remote:
             # Known bandit B324 finding, suppressed here and tracked in #1754.
             image_hash = md5(image_source.encode('utf-8')).hexdigest()  # nosec B324
             
@@ -279,6 +381,8 @@ class BaseReportTemplate:
                 return str(cached_path)
 
             log.info(f"Downloading image from URL: {image_source}")
+            # Cleared below once the download succeeds.
+            self._unavailable_images.add(image_source)
             try:
                 response = requests.get(image_source, stream=True, timeout=30)
                 response.raise_for_status()
@@ -297,6 +401,10 @@ class BaseReportTemplate:
                         for chunk in response.iter_content(chunk_size=8192):
                             f.write(chunk)
                 log.info(f"Image cached to: {cached_path}")
+                self._unavailable_images.discard(image_source)
+                # The saved name follows the Content-Type, which can differ
+                # from the URL-derived name looked up above; remember it.
+                self._fetched_images[image_source] = str(cached_path)
                 return str(cached_path)
             except requests.exceptions.RequestException as e:
                 log.error(f"Error downloading image from {image_source}: {e}")
@@ -307,6 +415,8 @@ class BaseReportTemplate:
                 log.debug(f"Using local image file: {local_path}")
                 return str(local_path)
             else:
+                # Logged once per document, not on every page.
+                self._unavailable_images.add(image_source)
                 log.error(f"Local image file not found: {local_path}")
                 return None
 
@@ -524,6 +634,9 @@ class BaseReportTemplate:
             story: List of ReportLab flowables to include in the document
         """
         try:
+            # SimpleDocTemplate.build appends its own 'First'/'Later' page
+            # templates and switches to 'Later' after page 1, so the header
+            # and footer callback must also be given for later pages.
             self.doc.pageTemplates = self._get_page_templates()
             if any(flowable.isIndexing() for flowable in story):
                 previous_after_flowable = self.doc.afterFlowable
@@ -537,11 +650,11 @@ class BaseReportTemplate:
 
                 self.doc.afterFlowable = record_toc_entry
                 try:
-                    self.doc.multiBuild(story)
+                    self.doc.multiBuild(story, onLaterPages=self._header_footer_on_page)
                 finally:
                     self.doc.afterFlowable = previous_after_flowable
             else:
-                self.doc.build(story)
+                self.doc.build(story, onLaterPages=self._header_footer_on_page)
             log.info(f"Document '{self.output_filename}' built successfully.")
         except Exception as e:
             log.error(f"Error building document '{self.output_filename}': {e}", exc_info=True)
