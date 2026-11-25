@@ -48,6 +48,9 @@ def _quote_column_identifier(name: Any) -> str:
     Matches the SDK's ``write_pandas`` quoting: wrap in double quotes and
     double any embedded double quote, so names such as ``First Name`` or
     ``say "hi"`` are kept exactly and cannot end the identifier early.
+    ``write_pandas`` escapes embedded double quotes from
+    snowflake-connector-python 3.1.0, so only from that version can a label
+    containing one be loaded.
 
     Raises:
         ValueError: The name is empty, longer than 255 characters, or
@@ -275,15 +278,21 @@ class SnowflakeConnector:
                   (https://docs.snowflake.com/en/sql-reference/transactions);
                   the connector assumes autocommit and does not check it
                   (#2034). The staging table is always a permanent table
-                  (#2034).
+                  (#2034). It is created with ``COPY GRANTS``, so it has the
+                  target's privileges (except OWNERSHIP) and none of the
+                  schema's future grants; a role that cannot read the target
+                  cannot read the staged rows
+                  (https://docs.snowflake.com/en/sql-reference/sql/create-table).
                   ``OVERWRITE`` removes the existing rows before inserting and
                   does not change the table's access privileges; it needs
                   INSERT and DELETE on the target
                   (https://docs.snowflake.com/en/sql-reference/sql/insert).
                   Creating the staging table needs CREATE TABLE on the schema.
                   Column labels are quoted as the SDK quotes them, so names
-                  such as ``First Name`` work; an empty label or one with a
-                  control character raises before any staging or data SQL.
+                  such as ``First Name`` work; labels containing a double
+                  quote need snowflake-connector-python 3.1.0 or later. An
+                  empty label or one with a control character raises before
+                  any staging or data SQL.
                   The target must exist; a missing target raises.
                 * ``auto_create_table=True``: the staging table is created
                   from ``df``'s columns, then exchanged with an existing
@@ -510,7 +519,14 @@ class SnowflakeConnector:
         return staging_name
 
     def _load_staging_table(self, df: 'pd.DataFrame', staging_name: str, table_name: str) -> int:
-        """Append ``df`` to the empty staging table and return the row count.
+        """Load ``df`` into the empty staging table and return the row count.
+
+        Passes ``overwrite=True``, as the overwrite path did for the target
+        before #1837, so ``write_pandas`` builds the same ``COPY``: binary
+        columns are read with ``BINARY_AS_TEXT=FALSE`` and column types are
+        inferred. On the staging table, ``overwrite`` only truncates the
+        empty table (some SDK versions first run ``CREATE TABLE IF NOT
+        EXISTS``, a no-op on the existing table); the target is not touched.
 
         Raises:
             RuntimeError: ``write_pandas`` reports failure.
@@ -520,7 +536,7 @@ class SnowflakeConnector:
             df,
             staging_name,
             auto_create_table=False,
-            overwrite=False,
+            overwrite=True,
         )
         if not success:
             raise RuntimeError(f"write_pandas reported failure for table {table_name}")
@@ -604,16 +620,21 @@ class SnowflakeConnector:
         (https://docs.snowflake.com/en/sql-reference/transactions). The
         connector assumes autocommit and does not check it; that, the
         permanent staging table and policies on the target are tracked in
-        #2034. The staging table needs CREATE TABLE on the schema and does
-        not inherit the target's grants (no ``COPY GRANTS``), which is
-        irrelevant because it is dropped.
+        #2034. The staging table needs CREATE TABLE on the schema. It is
+        created with ``COPY GRANTS``, so it has the target's privileges
+        (except OWNERSHIP) and does not inherit the schema's future grants
+        (https://docs.snowflake.com/en/sql-reference/sql/create-table): a role
+        whose access to the target was revoked cannot read the staged rows.
+        Whether copying grants needs more than CREATE TABLE in a
+        managed-access schema is not documented (#2034).
 
         Returns:
             Number of rows loaded.
 
         Column labels are quoted the way the SDK's ``write_pandas`` quotes them
         (see :func:`_quote_column_identifier`), so any label the target table
-        can hold, such as ``First Name``, is accepted.
+        can hold, such as ``First Name``, is accepted; labels containing a
+        double quote need snowflake-connector-python 3.1.0 or later.
 
         Raises:
             ValueError: From :meth:`_new_staging_name`, or a column label that
@@ -630,7 +651,9 @@ class SnowflakeConnector:
         created = False
         try:
             log.info(f"Creating staging table {staging_name} to overwrite {table_name}")
-            self.cursor.execute(f'CREATE TABLE "{staging_name}" LIKE "{table_name}"')
+            self.cursor.execute(
+                f'CREATE TABLE "{staging_name}" LIKE "{table_name}" COPY GRANTS'
+            )
             created = True
             nrows = self._load_staging_table(df, staging_name, table_name)
             self.cursor.execute(

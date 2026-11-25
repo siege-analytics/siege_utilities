@@ -96,14 +96,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `write_pandas` overwrite truncated the table before copying (#1837). The new
   rows are now loaded into a uniquely named staging table first
   (`<table>_SU_STAGE_<12 hex>`). With `auto_create_table=False`, the staging
-  table is created `LIKE` the target and the target's rows are then replaced
-  in one `INSERT OVERWRITE` statement. The target table object is kept, with
+  table is created `LIKE` the target with `COPY GRANTS` and the target's rows
+  are then replaced in one `INSERT OVERWRITE` statement. With `COPY GRANTS`
+  the staging table has the target's privileges (except OWNERSHIP) and none
+  of the schema's future grants, so a role that cannot read the target cannot
+  read the staged rows. The target table object is kept, with
   its grants, owner, kind, streams and Time Travel history. This relies on
   the connection's autocommit, which is assumed and not checked; the staging
   table is always permanent; and row-access or masking policies on the target
   are not examined. These limits are tracked in #2034. Column names on this
   path are quoted as the connector's `write_pandas` quotes them, so names such as
-  `First Name` still work; an empty column name or one containing a control
+  `First Name` still work (names containing a double quote need
+  snowflake-connector-python 3.1.0 or later); an empty column name or one containing a control
   character, including a trailing newline, raises `RuntimeError` before any
   staging or data SQL runs. With
   `auto_create_table=True`, the staging table is created from the
@@ -124,7 +128,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (for the staging table) and INSERT and DELETE on the target, which is
   Snowflake's documented requirement for `INSERT OVERWRITE` (6.0.0's
   truncate needed TRUNCATE rather than DELETE); ownership of the target is
-  not needed. The target must already exist: with `auto_create_table=False`
+  not needed. Snowflake does not document whether `COPY GRANTS` needs more
+  than CREATE TABLE in a managed-access schema (#2034). The target must
+  already exist: with `auto_create_table=False`
   and `overwrite=True` a missing table now raises, whereas 6.0.0 with
   snowflake-connector-python 5.2.0 let `write_pandas` create it; pass
   `auto_create_table=True` to create a missing table. With

@@ -17,10 +17,11 @@ grants, kind), ``DROP``/``CREATE``/``LIKE``, ``SWAP WITH``, ``RENAME TO``,
 ``INSERT OVERWRITE``, the INFORMATION_SCHEMA existence probe and
 ``write_pandas``. Each statement can fail before it takes effect, or after it
 took effect while the client still sees an error. Its rules follow the
-Snowflake documentation, not observation: a ``LIKE`` table copies columns but
-no grants and is permanent; a swap exchanges which object each name refers to;
-``INSERT OVERWRITE`` replaces the rows of the same object and is rolled back
-on failure.
+Snowflake documentation, not observation: a new table is permanent and gets
+the schema's future grants, except that a ``LIKE ... COPY GRANTS`` table gets
+the source's grants instead; a ``LIKE`` table copies columns; a swap exchanges
+which object each name refers to; ``INSERT OVERWRITE`` replaces the rows of the
+same object and is rolled back on failure.
 """
 
 import logging
@@ -62,6 +63,8 @@ class FakeSnowflake:
         self.fail_on = []      # (pattern, exception): raise before the statement
         self.raise_after = []  # (pattern, exception): apply, then raise
         self.fail_write = None
+        self.future_grants = set()  # schema-level future grants on tables
+        self.write_calls = []       # (table, auto_create_table, overwrite, grants at load)
         self._result = None
 
     def _inject(self, rules, sql):
@@ -95,15 +98,20 @@ class FakeSnowflake:
                 if match[1]:
                     return
                 raise ProgrammingError(f"Object '{match[2]}' already exists.")
-            self.tables[match[2]] = Table(columns=re.findall(r'"([^"]+)" ', match[3]))
+            self.tables[match[2]] = Table(columns=re.findall(r'"([^"]+)" ', match[3]),
+                                          grants=self.future_grants)
             return
-        match = re.fullmatch(rf"CREATE TABLE {_NAME} LIKE {_NAME}", sql)
+        match = re.fullmatch(rf"CREATE TABLE {_NAME} LIKE {_NAME}( COPY GRANTS)?", sql)
         if match:
             if match[1] in self.tables:
                 raise ProgrammingError(f"Object '{match[1]}' already exists.")
             if match[2] not in self.tables:
                 raise ProgrammingError(f"Table '{match[2]}' does not exist.")
-            self.tables[match[1]] = Table(columns=self.tables[match[2]].columns)
+            source = self.tables[match[2]]
+            # COPY GRANTS: the source's grants and no future grants; without
+            # it, the schema's future grants.
+            grants = source.grants if match[3] else self.future_grants
+            self.tables[match[1]] = Table(columns=source.columns, grants=grants)
             return
         match = re.fullmatch(rf"ALTER TABLE {_NAME} SWAP WITH {_NAME}", sql)
         if match:
@@ -163,6 +171,7 @@ class FakeSnowflake:
         table = self.tables.get(table_name)
         if table is None:
             raise ProgrammingError(f"Table '{table_name}' does not exist.")
+        self.write_calls.append((table_name, auto_create_table, overwrite, set(table.grants)))
         if not set(df.columns) <= set(table.columns):
             raise ProgrammingError("invalid identifier")
         if overwrite:
@@ -307,12 +316,56 @@ def test_overwrite_without_auto_create_keeps_object_grants_and_kind(connector, f
 def test_overwrite_without_auto_create_uses_one_insert_overwrite(connector, fake):
     connector.upload_dataframe(NEW, "events", auto_create_table=False, overwrite=True)
 
-    staging = re.fullmatch(r'CREATE TABLE "(events_SU_STAGE_[0-9A-F]{12})" LIKE "events"',
-                           fake.statements[0])[1]
+    staging = re.fullmatch(
+        r'CREATE TABLE "(events_SU_STAGE_[0-9A-F]{12})" LIKE "events" COPY GRANTS',
+        fake.statements[0],
+    )[1]
     assert fake.statements[1:] == [
         f'INSERT OVERWRITE INTO "events" ("amount") SELECT "amount" FROM "{staging}"',
         f'DROP TABLE IF EXISTS "{staging}"',
     ]
+
+
+def test_staging_table_does_not_expose_rows_to_schema_future_grants(connector, fake, original):
+    # The schema grants future SELECT to READER, but READER cannot read
+    # "events" (its access was revoked). The staging table must not let
+    # READER read the new rows, even while they are staged.
+    fake.future_grants = {("SELECT", "READER")}
+
+    connector.upload_dataframe(NEW, "events", auto_create_table=False, overwrite=True)
+
+    [(staging, _, _, staging_grants)] = fake.write_calls
+    assert "_SU_STAGE_" in staging
+    assert staging_grants == {("SELECT", "ANALYST")}
+    assert original.grants == {("SELECT", "ANALYST")}
+    assert fake.tables["events"] is original and original.rows == NEW_ROWS
+
+
+def test_swap_target_gets_future_grants_like_a_recreated_table(connector, fake, original):
+    # Unchanged from 6.0.0: the new target object of a swap is a new table,
+    # as the table re-created after DROP was, so it gets the schema's future
+    # grants and not the previous object's explicit grants.
+    fake.future_grants = {("SELECT", "READER")}
+
+    connector.upload_dataframe(NEW, "events", auto_create_table=True, overwrite=True)
+
+    assert fake.tables["events"] is not original
+    assert fake.tables["events"].grants == {("SELECT", "READER")}
+
+
+@BOTH_PATHS
+def test_staging_load_uses_the_overwrite_copy_options(connector, fake, auto_create):
+    # The overwrite path passed overwrite=True to write_pandas before #1837,
+    # which makes the SDK read binary columns with BINARY_AS_TEXT=FALSE and
+    # infer column types. The staging load keeps those options; on the empty
+    # staging table overwrite only truncates. The fake cannot decode Parquet,
+    # so this checks the arguments, not the binary decoding itself.
+    connector.upload_dataframe(NEW, "events", auto_create_table=auto_create, overwrite=True)
+
+    [(table, auto_create_table, overwrite, _)] = fake.write_calls
+    assert re.fullmatch(r"events_SU_STAGE_[0-9A-F]{12}", table)
+    assert auto_create_table is False
+    assert overwrite is True
 
 
 def test_overwrite_without_auto_create_column_mismatch_keeps_original(connector, fake, original):
@@ -376,6 +429,7 @@ def test_append_path_is_unchanged(connector, fake, original):
     assert fake.tables["events"] is original
     assert original.rows == OLD + NEW_ROWS
     assert not any("SWAP" in s or "DROP" in s or "OVERWRITE" in s for s in fake.statements)
+    assert [call[:3] for call in fake.write_calls] == [("events", False, False)]
 
 
 # --- cleanup errors never change the outcome (S3-3) ------------------------
@@ -516,7 +570,10 @@ def test_create_helper_refuses_destructive_overwrite(connector):
     ids=["space", "double_quote", "unicode", "injection_attempt"],
 )
 def test_overwrite_without_auto_create_accepts_any_column_name(connector, fake, column):
-    original = Table([{column: 1}, {column: 2}], columns=[column], grants={("SELECT", "ANALYST")})
+    # The fake's write_pandas accepts any label, as snowflake-connector-python
+    # 3.1.0 and later do; earlier versions do not escape an embedded double
+    # quote in the COPY column list, so 'say "hi"' models 3.1.0 or later.
+    original =Table([{column: 1}, {column: 2}], columns=[column], grants={("SELECT", "ANALYST")})
     fake.tables = {"events": original}
 
     connector.upload_dataframe(
