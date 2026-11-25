@@ -438,6 +438,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `get_file_path`) or create the directory itself, and code that set a
   path variable after import and expected it to be ignored must set it
   before the first read (#1448).
+- AREA, POPULATION and HOUSING crosswalk transformations use `area_weight`,
+  `population_weight` and `housing_weight`, respectively, and raise `ValueError`
+  naming the source and target for a missing weight on a matched
+  source/target row. AREA no longer treats a missing `area_weight` as 1.0, which
+  silently counted the full value toward that target; fix or drop such
+  crosswalk rows before calling. The check applies to every AREA call,
+  including calls that name only `intensive_variables`. Sources absent from the
+  crosswalk still keep their values. POPULATION and HOUSING also raise for a
+  missing weight column. The Census crosswalk client currently supplies only
+  area weights. `aggregation_func='weighted_mean'` divides by the weight of the
+  rows with a non-missing value, so a missing value no longer lowers the mean;
+  a target whose values are all missing is NaN with coverage 0.0. Previously
+  every row's weight stayed in the denominator. EQUAL now divides each source
+  among its targets, so split outputs change and conserve totals. Extensive
+  totals (`aggregation_func='sum'`, the default) are NaN for a target with any
+  missing contributing value, meaning a matched row with a nonzero weight,
+  instead of the sum of the remaining values, and all-missing targets are NaN
+  instead of zero; areal interpolation already returned NaN in that case, so
+  both paths agree (#1945). Each transformed crosswalk
+  value column gains `<col>_coverage`: the share of target contribution weight
+  with non-missing values, using allocation weights for extensive columns and
+  overlap areas for intensive columns; all-missing targets and targets with no
+  contribution weight have coverage 0.0. An input column already named
+  `<col>_coverage` for a value column `<col>` raises `ValueError` in
+  `transform` and `LongitudinalAligner.align` instead of being overwritten.
+  `LongitudinalAligner` carries coverage from one step to the next instead of
+  summing it, and `transform`, `apply_crosswalk` and `normalize_to_year`
+  accept `carried_coverage` for chained calls. `normalize_to_year` now accepts
+  `weight_method` and `intensive_variables`, and `get_longitudinal_data`
+  accepts the same names as `intensive_columns` and warns when they are
+  omitted during boundary normalization. **Migration:** pass
+  `WeightMethod.AREA` explicitly when using the Census crosswalk client, or
+  supply an enriched crosswalk to `CrosswalkProcessor` for population/housing
+  weighting. String methods are converted through `WeightMethod(value)`; invalid
+  methods raise instead of falling back to AREA. Name rates, ratios, medians,
+  and densities in `intensive_variables` (or `intensive_columns`) when using
+  `transform`, `apply_crosswalk`, `normalize_to_year` or
+  `get_longitudinal_data`, so they are averaged and not summed. Fill or drop
+  missing source values before transforming where a total from the remaining
+  sources is wanted. When chaining calls, for example `transform` with your
+  own 2000 to 2010 crosswalk table and then `normalize_to_year` from 2010 to
+  2020, pass the first call's
+  `<col>_coverage` columns to the second as `carried_coverage`; do not rename
+  them, because a renamed coverage column is summed as a count. Rename only
+  your own data columns that are named `<col>_coverage` for a value column
+  `<col>`. Update downstream column selections and missing-value handling for
+  the new `<col>_coverage` outputs (#1409).
 
 - Crosswalk availability lists only transitions with a configured Census file
   pattern: `SUPPORTED_CROSSWALK_YEARS` (in `geo/crosswalk/relationship_types`)
