@@ -517,6 +517,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unsigned cell ranges. Correct the PostGIS storage guidance. Invalid cell IDs
   (outside the 64-bit range, or a bare pd.NA) now raise ValueError/TypeError
   instead of returning unusable values (#1473).
+- A Census API data request (`CensusAPI`, `CensusAPIClient`,
+  `get_demographics`) that the API redirects to its missing-key or
+  invalid-key page now raises `CensusAPIKeyError` at once, with a message
+  saying the key is required or was rejected, instead of retrying five times
+  and failing with `Expecting value: line 1 column 1`. Any other response that
+  is not JSON raises `CensusAPIError` ("Invalid API response", with its content
+  type) without retrying; before, it was retried because `requests` raises
+  its JSON error as a request error. The no-key warning no longer says the API
+  "will still work": data requests, including ACS tables, now need a key
+  (#1996).
 
 ### Security
 
