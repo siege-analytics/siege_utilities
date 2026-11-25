@@ -592,6 +592,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `identifier_columns=[]` and `address_columns=[]` to disable identifier
   merging, instead of the old name-only merging.
 
+- Batch geocoder normalization now restores leading zeros in numeric ZIPs,
+  preserves string ZIPs (including ZIP+4), converts the dictionary address
+  fields (street, city, state, ZIP) to strings, and treats NaN/None and pandas
+  NA/NaT as empty values, so the same input rows produce different query
+  strings and results than on v4.0.0. Caller IDs pass through unchanged.
+  Numeric ZIP+4 values are padded to nine digits; invalid numeric ZIPs
+  (negative, fractional, boolean, non-finite, or over nine digits) become empty
+  values. The public Census `geocode_batch` / `geocode_batch_chunked`
+  dictionary path uses the same normalization. Mixed address lists and
+  non-string `AddressInput.one_line` components no longer crash. Nominatim and
+  TAMU query construction failures now produce one unmatched row instead of
+  aborting the whole batch and causing the composite geocoder to silently drop
+  the backend. Per-row failures are reported in `BatchGeocodingResult.errors`
+  by caller ID and exception type, without address text; the composite
+  preserves backend errors and names the caller's IDs in them.
+  `concatenate_addresses` also skips missing components and restores leading
+  zeros in a numeric postal code only when the country is empty or the United
+  States ("US", "USA", "United States", any case); for other countries a
+  numeric postal code keeps its digits (Sydney's 2000 stays 2000). Directly
+  constructed `AddressInput` objects normalize their ZIP codes. **Migration:** re-key any
+  stored geocoding results that were keyed on a ZIP with its leading zero
+  dropped (for example `2101`, now `02101`); expect an empty ZIP, not a
+  guessed one, where a numeric ZIP is invalid; and read `errors` on the batch
+  result instead of relying on an exception or a silently missing backend to
+  detect a failed row (#1526).
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
