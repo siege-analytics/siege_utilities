@@ -697,6 +697,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its JSON error as a request error. The no-key warning no longer says the API
   "will still work": data requests, including ACS tables, now need a key
   (#1996).
+- `get_crosswalk` no longer fails when no parquet engine is installed, as
+  with `pip install 'siege-utilities[geo]'`, which does not include pyarrow
+  or fastparquet. The parquet cache is optional: a cache write that pandas
+  cannot make is skipped with a warning and the computed crosswalk is
+  returned, and a cache file that cannot be read is treated as a cache miss
+  with a warning. Install pyarrow to use the cache (#1994).
+- `extract_parent_geoid(geoid, "block", "block_group")` returns the block's
+  12-digit block-group GEOID instead of raising `ValueError`. Block group
+  from any other child level still raises (#1995).
 
 ### Security
 
