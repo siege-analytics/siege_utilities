@@ -348,6 +348,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   skipped with a logged error and the rest of the report is built. Objects
   that are not PIL images but provide `save()` and `mode` are embedded as
   before, without downsampling (#2000).
+- **Packaging behavior change from 6.0.0 and earlier releases:**
+  `pip install 'siege-utilities[crm]'` now installs `msal>=1.27.0` and pandas
+  for the CRM connectors; `[all]` also includes MSAL. 6.0.0 and earlier
+  releases declared no MSAL dependency, so every extra left Dynamics
+  authentication unavailable without a separate install. The floor is 1.27.0
+  because Dynamics token renewal calls
+  `ConfidentialClientApplication.remove_tokens_for_client`, which MSAL Python
+  first ships in 1.27.0. Dynamics dependency errors now recommend `[crm]`, and
+  CI installs it so the Dynamics tests execute instead of skipping (#1449).
 
 ### Security
 
