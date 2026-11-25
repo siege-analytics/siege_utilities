@@ -785,6 +785,17 @@ vtds = source.get_vtds(state_fips='06', year=2020)
 
 Census tract boundaries change between decennials. Use crosswalks to normalize data:
 
+Available crosswalks are 2010->2020 for `tract`, `block_group`, and `county`.
+`list_available_crosswalks()` lists only transitions with configured file patterns.
+`normalize_to_year` applies a forward crosswalk; backward requests raise
+`ValueError("Backward normalization is not supported: <data_year>-><target_year>")`
+before crosswalk lookup. Equal years return a copy. `LongitudinalAligner`
+rejects backward alignment (newer vintage to older) before alignment. Forward
+alignment steps one decade at a time: a step with a published crosswalk uses
+it, and a step without one (2000->2010, or `block` and `place` geographies)
+uses areal interpolation, reported as `method="areal"` with a warning. These
+are documented behavior changes from 6.0.0.
+
 ```python
 from siege_utilities.geo import (
     get_crosswalk,
@@ -809,10 +820,10 @@ df_2020 = apply_crosswalk(
     weight_method='area'  # or 'population', 'housing'
 )
 
-# Normalize multiple years to common boundaries
+# Normalize data from one boundary year to 2020
 df_normalized = normalize_to_year(
-    df=df,
-    year_column='year',
+    df=df_2010,
+    data_year=2010,
     target_year=2020
 )
 

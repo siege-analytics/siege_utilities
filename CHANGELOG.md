@@ -369,6 +369,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   path variable after import and expected it to be ignored must set it
   before the first read (#1448).
 
+- Crosswalk availability lists only transitions with a configured Census file
+  pattern: `SUPPORTED_CROSSWALK_YEARS` (in `geo/crosswalk/relationship_types`)
+  now contains only 2010->2020 for `tract`, `block_group` and `county`; the
+  6.0.0 `(2000, 2010)` entry and the `block` geography are removed.
+  `CrosswalkClient.get_crosswalk` and `normalize_to_year` already raised
+  `ValueError` for these requests in 6.0.0 ("No crosswalk file available ..."
+  / "Crosswalk not supported ..."); they now reject them before any cache
+  access, download or crosswalk lookup, with "not supported" messages, and
+  `normalize_to_year` raises "Backward normalization is not supported:
+  <from>-><to>" when `data_year > target_year`. Equal years still return a
+  copy. `LongitudinalAligner.align` raises `ValueError` ("No supported
+  crosswalk path from <from> to <to>: backward alignment is not supported")
+  before alignment for backward transitions (2020->2010, 2010->2000,
+  2020->2000), where 6.0.0 planned reverse crosswalk steps and fell back to
+  areal interpolation. Forward alignment is unchanged: a step with no
+  published crosswalk (2000->2010, and 2010->2020 for `block`, `place` and
+  other levels outside the table) still uses areal interpolation, reported as
+  `method="areal"` with a warning, and whether that fallback stays is left to
+  #1408. A cache file placed by hand for such a step is no longer read
+  (#1494). **Migration:** normalize and align forward only (older
+  vintage to newer); stop reading `(2000, 2010)` or `block` from
+  `SUPPORTED_CROSSWALK_YEARS`; update any code that matches the old error
+  messages.
+
 ### Changed
 
 - `scripts/check_exception_contracts.py`, the exception-contract guard that CI
@@ -509,6 +533,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rows by column name and refuses data in a different CRS; an equal CRS whose
   WKT is spelled differently is recorded once and reads back. Arbitrary SQL
   through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and an opt-in `as_signed=True` (default `False`, so
+  existing results are unchanged) on point indexing, polygon indexing, region
+  covers, and range generation so signed SQL `BETWEEN` queries match the
+  unsigned cell ranges. Correct the PostGIS storage guidance. Invalid cell IDs
+  (outside the 64-bit range, or a bare pd.NA) now raise ValueError/TypeError
+  instead of returning unusable values (#1473).
+- A Census API data request (`CensusAPI`, `CensusAPIClient`,
+  `get_demographics`) that the API redirects to its missing-key or
+  invalid-key page now raises `CensusAPIKeyError` at once, with a message
+  saying the key is required or was rejected, instead of retrying five times
+  and failing with `Expecting value: line 1 column 1`. Any other response that
+  is not JSON raises `CensusAPIError` ("Invalid API response", with its content
+  type) without retrying; before, it was retried because `requests` raises
+  its JSON error as a request error. The no-key warning no longer says the API
+  "will still work": data requests, including ACS tables, now need a key
+  (#1996).
 - `get_crosswalk` no longer fails when no parquet engine is installed, as
   with `pip install 'siege-utilities[geo]'`, which does not include pyarrow
   or fastparquet. The parquet cache is optional: a cache write that pandas
