@@ -216,8 +216,12 @@ class StatsChartMixin:
                 observed=True,
             )
 
+            # One float array for the whole grid: pandas nullable dtypes
+            # (Int64, Float64) give object arrays with pd.NA otherwise.
+            grid = pivot_data.to_numpy(dtype=float, na_value=np.nan)
+
             # Normalize values to heat character indices
-            finite_values = pivot_data.values[np.isfinite(pivot_data.values)]
+            finite_values = grid[np.isfinite(grid)]
             max_value = finite_values.max() if finite_values.size else 0
             min_value = finite_values.min() if finite_values.size else 0
             value_range = max_value - min_value if max_value > min_value else 1
@@ -234,7 +238,7 @@ class StatsChartMixin:
             chart_lines.append(indent + "-" * (cell_width * len(col_headers)))
 
             # Add rows
-            for idx, row in pivot_data.iterrows():
+            for idx, row in zip(pivot_data.index, grid):
                 row_label = str(idx).ljust(row_label_width)
                 heat_row = ""
 

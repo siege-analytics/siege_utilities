@@ -220,7 +220,9 @@ class CompositeChartMixin:
 
         Args:
             charts: List of chart configurations
-            layout: Columns x rows (e.g., "2x2", "3x1")
+            layout: Columns x rows (e.g., "2x2", "3x1"). As before, any
+                value without a lowercase ``x`` (such as ``"4"``, ``"2X2"`` or
+                ``(2, 2)``) gives a 2x2 grid.
             width: Total dashboard width in inches
             height: Total dashboard height in inches
 
@@ -229,8 +231,11 @@ class CompositeChartMixin:
         """
         fig = None
         try:
-            # Parse layout
-            cols, rows = map(int, layout.split('x'))
+            # Parse layout: "<columns>x<rows>"; anything else is 2x2, as on develop.
+            if 'x' in layout:
+                cols, rows = map(int, layout.split('x'))
+            else:
+                cols, rows = 2, 2
             if cols < 1 or rows < 1:
                 raise ValueError("Dashboard layout dimensions must be positive")
             if len(charts) > cols * rows:
@@ -346,12 +351,16 @@ class CompositeChartMixin:
 
             ) from e
 
-    def _dashboard_data(self, chart_config: Dict[str, Any]):
-        """Validate and normalize the shared labels/datasets schema without mutating it."""
+    def _dashboard_data(self, chart_config: Dict[str, Any], title: str = None):
+        """Validate and normalize the shared labels/datasets schema without mutating it.
+
+        ``title`` names the chart in error messages (the dashboard passes
+        "Chart N" for an untitled chart).
+        """
         data = chart_config.get('data', {})
         labels = data.get('labels', [])
         datasets = data.get('datasets', [])
-        title = chart_config.get('title', 'Chart')
+        title = title or chart_config.get('title', 'Chart')
         if not len(labels) or not len(datasets):
             raise ValueError(f"{title!r} requires non-empty labels and datasets")
         normalized = []
@@ -367,7 +376,7 @@ class CompositeChartMixin:
 
     def _create_bar_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Plot every dataset as a labelled, side-by-side bar series."""
-        labels, datasets = self._dashboard_data(chart_config)
+        labels, datasets = self._dashboard_data(chart_config, title)
         positions = np.arange(len(labels))
         bar_width = 0.8 / len(datasets)
         for i, dataset in enumerate(datasets):
@@ -381,7 +390,7 @@ class CompositeChartMixin:
 
     def _create_line_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Create a line chart in a subplot."""
-        labels, datasets = self._dashboard_data(chart_config)
+        labels, datasets = self._dashboard_data(chart_config, title)
         for i, dataset in enumerate(datasets):
             color = self.color_palette[i % len(self.color_palette)]
             ax.plot(labels, dataset['data'], label=dataset['label'], color=color, marker='o')
@@ -391,7 +400,7 @@ class CompositeChartMixin:
 
     def _create_pie_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Plot each dataset as a pie or concentric ring with a series/category legend."""
-        labels, datasets = self._dashboard_data(chart_config)
+        labels, datasets = self._dashboard_data(chart_config, title)
         handles, legend_labels = [], []
         ring_width = 0.8 / len(datasets)
         for i, dataset in enumerate(datasets):
@@ -411,7 +420,7 @@ class CompositeChartMixin:
 
     def _create_scatter_subplot(self, ax, chart_config: Dict[str, Any], title: str):
         """Create a scatter plot in a subplot."""
-        labels, datasets = self._dashboard_data(chart_config)
+        labels, datasets = self._dashboard_data(chart_config, title)
         for i, dataset in enumerate(datasets):
             ax.scatter(labels, dataset['data'], label=dataset['label'], alpha=0.6,
                        color=self.color_palette[i % len(self.color_palette)])

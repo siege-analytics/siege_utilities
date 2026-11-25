@@ -5,10 +5,11 @@ Bar, line, pie, and proportional text bar chart mixins.
 from __future__ import annotations
 
 import logging
-from math import isfinite
+from math import floor, isfinite, log10
 from typing import Dict, List, Any, Union
 
 from .._markup import _escape_paragraph
+from ..chart_types import ChartParameterError
 
 # Core plotting libraries
 try:
@@ -64,24 +65,46 @@ class BarChartMixin:
             width: Chart width in inches
             height: Chart height in inches
             chart_type: Type of chart ('bar', 'horizontal')
-            group_by: Column for side-by-side series. Repeated category/group
-                pairs are summed; missing pairs are not plotted.
+            group_by: Column for side-by-side series: one bar per category
+                and group value, in first-seen order, with a legend entry per
+                group. Repeated category/group pairs are summed; missing
+                pairs are not plotted. Works with ``x_column='index'`` and
+                with ``x_column`` omitted (one category per row).
             value_format: Optional Python format specifier (e.g. ',.2f' or
-                '.1%'). Defaults to integers for all-integer data, otherwise
-                six significant digits, including small fractional values.
+                '.1%'). By default labels are fixed-point with thousands
+                separators, never exponent notation: whole numbers when every
+                value is whole, otherwise the fewest decimals that show every
+                value, up to 2 (or up to two significant digits of the smallest
+                non-zero value when it is below 0.1). Values are compared to
+                their rounding with a relative tolerance of one billionth, so
+                cents on values from about 10,000,000 upward may be dropped and
+                values below 1e-9 show as 0.
 
         Returns:
             ReportLab Image object
+
+        Raises:
+            RuntimeError: "Chart generation failed" for invalid data, chained
+                from the underlying error. When ``group_by`` is not a column
+                of ``data`` the cause is a ``ChartParameterError`` naming the
+                argument, the missing column and the available columns.
         """
         if not MATPLOTLIB_AVAILABLE:
             return self._create_placeholder_chart(width, height, "Matplotlib not available")
 
+        fig = None
         try:
             # Convert data to DataFrame if needed
             if isinstance(data, dict):
                 df = pd.DataFrame(data)
             else:
                 df = data.copy()
+
+            if group_by is not None and group_by not in df.columns:
+                raise ChartParameterError(
+                    f"create_bar_chart: group_by column {group_by!r} not found "
+                    f"in data; available columns: {[str(c) for c in df.columns]}"
+                )
 
             # Handle different data formats
             if x_column == 'index':
@@ -108,7 +131,8 @@ class BarChartMixin:
 
             # Keep categories in input order and give each group its own slot.
             bars = []
-            if group_by:
+            n_categories = len(x_values)
+            if group_by is not None:
                 grouped = pd.DataFrame({
                     'category': x_values, 'group': df[group_by].tolist(),
                     'value': y_values,
@@ -118,6 +142,7 @@ class BarChartMixin:
                                           columns=pd.unique(df[group_by]))
                 if grouped.empty:
                     raise ValueError("No grouped values found in data for bar chart")
+                n_categories = len(grouped)
                 positions = np.arange(len(grouped))
                 bar_width = 0.8 / len(grouped.columns)
                 for i, group in enumerate(grouped.columns):
@@ -137,11 +162,9 @@ class BarChartMixin:
                 else:
                     ax.set_xticks(positions, labels=grouped.index)
             elif chart_type == 'horizontal':
-                bars = ax.barh(x_values, y_values, color=self.default_colors['primary'],
-                               label=y_column)
+                bars = ax.barh(x_values, y_values, color=self.default_colors['primary'])
             else:
-                bars = ax.bar(x_values, y_values, color=self.default_colors['primary'],
-                              label=y_column)
+                bars = ax.bar(x_values, y_values, color=self.default_colors['primary'])
 
             if chart_type == "horizontal":
                 ax.set_xlabel(y_column)
@@ -154,17 +177,16 @@ class BarChartMixin:
             ax.set_title(title or f"{y_column} by {x_column if x_column != 'index' else 'Index'}")
             ax.grid(True, alpha=0.3)
 
-            # Rotate x-axis labels if needed
-            if chart_type != 'horizontal' and len(x_values) > 5:
+            # Rotate x-axis labels when there are many categories. Count
+            # categories, not rows: grouped data has one row per series.
+            if chart_type != 'horizontal' and n_categories > 5:
                 plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
 
             # Add value labels on bars
             bar_values = [bar.get_width() if chart_type == 'horizontal'
                           else bar.get_height() for bar in bars]
             if value_format is None:
-                value_format = ',.0f' if all(
-                    isfinite(value) and float(value).is_integer() for value in bar_values
-                ) else ',.6g'
+                value_format = self._default_value_format(bar_values)
             for bar, value in zip(bars, bar_values):
                 if chart_type == 'horizontal':
                     ax.text(bar.get_x() + bar.get_width(),
@@ -177,20 +199,56 @@ class BarChartMixin:
                             format(value, value_format), ha='center',
                             va='bottom' if value >= 0 else 'top')
 
-            # Add legend with better positioning
-            if show_legend and (group_by or len(y_values) > 1):
+            # Add legend with better positioning. Only grouped bars carry
+            # labels. The handles are passed explicitly so a single-series
+            # chart keeps its existing look (no entry is added for it) without
+            # matplotlib's "No artists with labels" warning.
+            if show_legend and (group_by is not None or len(y_values) > 1):
+                handles, labels = ax.get_legend_handles_labels()
                 if legend_position == "outside":
-                    ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+                    ax.legend(handles, labels, bbox_to_anchor=(1.05, 1), loc='upper left')
                 elif legend_position == "bottom":
-                    ax.legend(bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=min(3, len(y_values) if len(y_values) > 1 else 1))
+                    ax.legend(handles, labels, bbox_to_anchor=(0.5, -0.15), loc='upper center', ncol=min(3, len(y_values) if len(y_values) > 1 else 1))
                 else:  # "best" or default
-                    ax.legend(loc='best')
+                    ax.legend(handles, labels, loc='best')
 
             # Convert to ReportLab Image
             return self._matplotlib_to_reportlab_image(fig, width, height)
 
         except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+            if fig is not None:
+                plt.close(fig)
             raise RuntimeError("Chart generation failed") from e
+
+    # Default value labels: decimals allowed beyond whole numbers, and the
+    # most decimals the rule can produce (the tolerance below means every
+    # value already matches its nine-decimal rounding).
+    _LABEL_MAX_DECIMALS = 2
+    _LABEL_DECIMALS_LIMIT = 9
+
+    @classmethod
+    def _default_value_format(cls, values: List[float]) -> str:
+        """Fixed-point label format with thousands separators for ``values``.
+
+        Uses the fewest decimals (0 for whole numbers) that show every finite
+        value, up to ``_LABEL_MAX_DECIMALS``, or up to two significant digits
+        of the smallest non-zero value when it is below 0.1. A value counts
+        as shown when it is within a relative tolerance of one billionth of
+        its rounding, so cents on values from about 10,000,000 upward may be
+        dropped and values below 1e-9 show as 0. Never switches to exponent
+        notation, whatever the magnitude.
+        """
+        finite = [float(value) for value in values if isfinite(value)]
+        nonzero = [abs(value) for value in finite if value != 0]
+        cap = cls._LABEL_MAX_DECIMALS
+        if nonzero:
+            cap = max(cap, 1 - floor(log10(min(nonzero))))
+        cap = min(cap, cls._LABEL_DECIMALS_LIMIT)
+        for decimals in range(cap + 1):
+            if all(abs(value - round(value, decimals)) <= 1e-9 * max(1.0, abs(value))
+                   for value in finite):
+                return f',.{decimals}f'
+        return f',.{cap}f'
 
     def create_line_chart(self, data: Union[pd.DataFrame, Dict[str, Any]],
                          x_column: str = None, y_columns: List[str] = None,

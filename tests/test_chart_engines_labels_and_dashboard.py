@@ -143,19 +143,19 @@ def test_dashboard_plots_every_dataset_and_labels_the_legend(charts, kind):
 
 def test_dashboard_overflow_names_every_chart_that_would_be_dropped(charts):
     configs = [chart_config('bar', title=name) for name in ['Kept', 'Lost one', 'Lost two']]
-    with pytest.raises((ValueError, RuntimeError), match='overflow.*Lost one.*Lost two'):
+    with pytest.raises(RuntimeError, match='overflow.*Lost one.*Lost two'):
         charts.create_dashboard(configs, layout='1x1')
 
 
 def test_dashboard_unknown_type_names_the_chart(charts):
-    with pytest.raises((ValueError, RuntimeError), match='Unknown chart type.*radar.*Traffic'):
+    with pytest.raises(RuntimeError, match='Unknown chart type.*radar.*Traffic'):
         charts.create_dashboard([chart_config('radar', title='Traffic')], layout='1x1')
 
 
 @pytest.mark.parametrize('kind', ['bar', 'line', 'pie', 'scatter'])
 def test_dashboard_invalid_dataset_raises_instead_of_returning_partial_chart(charts, kind):
     datasets = [{'label': 'Valid', 'data': [10, 20]}, {'label': 'Incomplete', 'data': [30]}]
-    with pytest.raises((ValueError, RuntimeError), match='Incomplete'):
+    with pytest.raises(RuntimeError, match='Incomplete'):
         charts.create_dashboard([chart_config(kind, datasets=datasets)], layout='1x1')
 
 
@@ -199,3 +199,155 @@ def test_pie_legend_handles_zero_and_nan_totals(charts, values, expected):
     table = ax.tables[0]
     assert [table[(row, 3)].get_text().get_text() for row in [1, 2]] == [expected, expected]
     assert ax.texts  # An explicit notice explains why there are no wedges.
+
+
+# --- default value labels: fixed-point, never exponent notation ---------------
+
+def _texts(fig):
+    return [text.get_text() for text in fig.axes[0].texts]
+
+
+@pytest.mark.parametrize('values,expected', [
+    ([1234567.89, 2345678.12], ['1,234,567.89', '2,345,678.12']),
+    ([1000000, 0.5], ['1,000,000.0', '0.5']),
+    ([12345678.9, 3.0], ['12,345,678.9', '3.0']),
+    ([1500000.0, 2500000.0], ['1,500,000', '2,500,000']),
+])
+def test_million_scale_vertical_labels_stay_fixed_point(charts, values, expected):
+    fig = charts.create_bar_chart({'name': ['A', 'B'], 'value': values}, 'name', 'value')
+    assert _texts(fig) == expected
+
+
+def test_million_scale_horizontal_labels_stay_fixed_point(charts):
+    fig = charts.create_bar_chart({'name': ['A', 'B'], 'value': [1234567.89, 2345678.12]},
+                                  'name', 'value', chart_type='horizontal')
+    assert _texts(fig) == ['1,234,567.89', '2,345,678.12']
+
+
+def test_million_scale_grouped_labels_stay_fixed_point(charts):
+    data = pd.DataFrame({'name': ['A', 'A', 'B', 'B'], 'group': ['x', 'y', 'x', 'y'],
+                         'value': [1234567.89, 2345678.12, 3456789.5, 4567890.25]})
+    fig = charts.create_bar_chart(data, 'name', 'value', group_by='group')
+    assert _texts(fig) == ['1,234,567.89', '3,456,789.50', '2,345,678.12', '4,567,890.25']
+
+
+def test_million_scale_facade_bar_labels_stay_fixed_point():
+    """The report facades call create_bar_chart with no value_format."""
+    pytest.importorskip('matplotlib')
+    from siege_utilities import ChartGenerator
+    from siege_utilities.reporting._facade_content import _chart_images
+
+    generator = ChartGenerator()
+    figures = []
+
+    def keep(fig, width, height):
+        figures.append(fig)
+        return 'IMG'
+
+    generator._matplotlib_to_reportlab_image = keep
+    config = {'type': 'bar', 'title': 'Revenue by channel',
+              'data': {'labels': ['Organic', 'Paid'],
+                       'datasets': [{'label': 'Revenue', 'data': [1234567.89, 2345678.12]}]}}
+    assert _chart_images(config, SimpleNamespace(chart_generator=generator)) == ['IMG']
+    assert _texts(figures[0]) == ['1,234,567.89', '2,345,678.12']
+
+
+@pytest.mark.parametrize('values,expected', [
+    ([1500, 2500], ',.0f'),
+    ([12.4, 20.6], ',.1f'),
+    ([100 / 3, 200 / 3], ',.2f'),
+    ([0.00012, 0.00058], ',.5f'),
+    ([1.0, float('nan')], ',.0f'),
+])
+def test_default_label_format_uses_the_fewest_decimals(values, expected):
+    assert bar_engine.BarChartMixin._default_value_format(values) == expected
+
+
+@pytest.mark.parametrize('values,expected', [
+    # More than two decimals only when the smallest non-zero value is below 0.1.
+    ([0.05, 1 / 3], ',.3f'),
+    ([0.012345], ',.3f'),
+    ([0.4832, 0.5168], ',.2f'),
+    # Up to two significant digits of the smallest value, not more.
+    ([0.000123456], ',.5f'),
+    # Float artefacts within the tolerance do not add decimals.
+    ([0.1 + 0.2, 0.3], ',.1f'),
+    # Relative tolerance of one billionth: cents vanish at fifty million, and
+    # values below 1e-9 are shown as 0.
+    ([50000000.04, 2.0], ',.0f'),
+    ([2e-10, 5e-10], ',.0f'),
+    # The most decimals the rule produces is nine.
+    ([5e-9], ',.9f'),
+])
+def test_default_label_format_follows_the_documented_limits(values, expected):
+    assert bar_engine.BarChartMixin._default_value_format(values) == expected
+
+
+# --- text heatmap with pandas nullable dtypes ---------------------------------
+
+@pytest.mark.parametrize('dtype', ['Int64', 'Float64'])
+def test_text_heatmap_accepts_nullable_dtypes(dtype):
+    frame = pd.DataFrame([('r1', 'A', 1), ('r1', 'B', 5), ('r2', 'A', 10)],
+                         columns=['row', 'column', 'value']).astype({'value': dtype})
+    lines = unescape(stats_engine.StatsChartMixin().create_heatmap_text_chart(
+        frame, 'column', 'row', 'value')).split('<br/>')
+    row = next(line for line in lines if line.startswith('r2 '))
+    assert row[11:13] == '██'
+    assert next(line for line in lines if line.startswith('r2 '))[13:15] == '··'
+
+
+# --- dashboard layouts, refusals and figure lifetime --------------------------
+
+@pytest.mark.parametrize('layout', ['4', '2X2', (2, 2)])
+def test_dashboard_layout_without_lowercase_x_is_a_2x2_grid(charts, layout):
+    fig = charts.create_dashboard([chart_config('bar')], layout=layout)
+    assert len(fig.axes) == 4
+    assert [ax.get_visible() for ax in fig.axes] == [True, False, False, False]
+
+
+def test_dashboard_layout_is_columns_by_rows(charts):
+    fig = charts.create_dashboard([chart_config('bar')] * 3, layout='3x1')
+    boxes = [ax.get_position() for ax in fig.axes]
+    assert len(boxes) == 3
+    assert len({round(box.y0, 6) for box in boxes}) == 1  # one row
+    assert len({round(box.x0, 6) for box in boxes}) == 3  # three columns
+
+
+def test_dashboard_error_names_the_untitled_chart_by_position(charts):
+    def untitled(data):
+        return {'type': 'bar', 'data': {'labels': ['A', 'B'], 'datasets': [{'data': data}]}}
+
+    with pytest.raises(RuntimeError, match="'Chart 3'"):
+        charts.create_dashboard([untitled([1, 2]), untitled([1, 2]), untitled([1]),
+                                 untitled([1, 2])], layout='2x2')
+
+
+@pytest.mark.parametrize('bad', [None, float('nan'), float('inf')])
+def test_dashboard_refuses_non_finite_values(charts, bad):
+    datasets = [{'label': 'Sessions', 'data': [10, bad]}]
+    with pytest.raises(RuntimeError, match="Sessions.*finite"):
+        charts.create_dashboard([chart_config('bar', datasets=datasets)], layout='1x1')
+
+
+def test_dashboard_closes_its_figure_when_it_fails():
+    plt = pytest.importorskip('matplotlib.pyplot')
+    from siege_utilities import ChartGenerator
+
+    before = set(plt.get_fignums())
+    datasets = [{'label': 'Incomplete', 'data': [30]}]
+    with pytest.raises(RuntimeError):
+        ChartGenerator().create_dashboard([chart_config('bar', datasets=datasets)],
+                                          layout='1x1')
+    assert set(plt.get_fignums()) == before
+
+
+def test_bar_chart_closes_its_figure_when_it_fails():
+    plt = pytest.importorskip('matplotlib.pyplot')
+    from siege_utilities import ChartGenerator
+
+    before = set(plt.get_fignums())
+    empty = pd.DataFrame({'name': [], 'group': [], 'value': []})
+    with pytest.raises(RuntimeError):
+        ChartGenerator().create_bar_chart(empty, x_column='name', y_column='value',
+                                          group_by='group')
+    assert set(plt.get_fignums()) == before
