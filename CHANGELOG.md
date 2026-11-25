@@ -153,12 +153,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (no worse than 6.0.0, which created and renamed a permanent table on those
   versions). The load's temporary stage and file format are created by
   `write_pandas` as in 6.0.0. Not tested against a live Snowflake account.
-  This path now checks the staging name with a `%s`-parameterised
-  `INFORMATION_SCHEMA` query, so a process that sets
-  `snowflake.connector.paramstyle` to `qmark` or `numeric` has that query
-  fail, so the call raises before anything is loaded, with the target
-  unchanged, where 6.0.0 worked (not run); the `auto_create_table=True` path
-  already had this dependency. The target must
+  Both overwrite paths now check a table with a `%s`-parameterised
+  `INFORMATION_SCHEMA` query (the staging name with `auto_create_table=False`,
+  the target with `auto_create_table=True`), so under
+  `snowflake.connector.paramstyle` `qmark` or `numeric` an overwrite,
+  including one with the default `auto_create_table=True`, raises before
+  anything is loaded, with the target unchanged, where 6.0.0 worked (not
+  run). The target must
   already exist: with `auto_create_table=False`
   and `overwrite=True` a missing table now raises, whereas 6.0.0 with
   snowflake-connector-python 5.2.0 let `write_pandas` create it; pass
