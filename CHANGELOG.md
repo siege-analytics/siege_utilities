@@ -157,6 +157,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   surfaces as `ConnectorError` instead of being retried. Check the job's state
   in Salesforce before running the bulk call again; the failed job is left
   open and is not closed.
+- `ReportGenerator.generate_pdf_report` now applies the client's branding to
+  the whole PDF, not only to the charts. Through 6.0.0 the page template was
+  built without it, so a report for a branded client (for example
+  `ReportGenerator("elect_info")`) had no header, footer, page numbers, logo,
+  brand text colours or brand margins (#1789, #1588 item 1). Every page now
+  carries the header, footer and page number; before, even a template given a
+  `template_config` YAML drew them on the first page only, and the first
+  page's frame kept the default width despite its brand margins. A branded
+  report's tables also follow
+  the brand: the header row takes `colors.primary`, with whichever of
+  whitesmoke and `colors.text_color` is readable on it (WCAG AA), the body is
+  white with `colors.text_color` text, and the grid is the primary colour
+  unless that would not show on white (#1993). Unbranded reports keep the grey,
+  beige and black table and have no header or footer, as before. Building a
+  PDF makes no network calls by default: an `http(s)` logo URL in the
+  branding (every built-in profile has one) is left out, with one info log
+  line per document, and a cached copy is not used either; a local logo path
+  is drawn as before. `ReportGenerator(..., fetch_remote_assets=True)` (or the
+  same argument on `BaseReportTemplate`) downloads remote logos, each at most
+  once per document even when its saved file name differs from the URL; a
+  logo that cannot be fetched is then left out, logged, and tried once per
+  document, not once per page. Through 6.0.0 a `template_config` YAML with a logo URL
+  was downloaded, and a failed download was retried on every page.
+  `colors` values are read the way the charts read them (matplotlib names,
+  `"#abc"`, `"#13293D80"`, RGB(A) tuples); `text_color` and
+  `header_footer_text_color` also still accept the `"0x13293D"` strings and
+  integers that template YAML could use through 6.0.0. Two values are read
+  differently: `"#abc"` was `#000ABC` and is now `#AABBCC`, and
+  `"#13293D80"` was `#293D80` and is now `#13293D` at 50% opacity, as in the
+  charts. When the `ReportGenerator` is created, a `primary`, `secondary`,
+  `accent`, `text_color` or `header_footer_text_color` entry that is present
+  but not a colour (including `None`, and `0x` or integer forms for the three
+  chart colours) raises `BrandingColorError` naming the key and the value;
+  before, it failed later or inside seaborn with an unnamed `ValueError`, or
+  a named table colour such as `"navy"` crashed the template. A `fonts`,
+  `header`, `footer`, `logo`, `footer_logo` or `page_margins` entry of the
+  wrong shape (including a font size or leading that is not a finite number
+  of at least 1, or a logo size or margin that is not a finite, non-negative
+  number), a `footer.page_number_format` that does not take exactly one
+  `%` value (such as `'Page %s'`), or margins that leave less than 72 pt for
+  the page frame raise `BrandingConfigError` (a `ValueError`, and the base of
+  `BrandingColorError`) naming the entry; through 6.0.0 a registered profile's
+  page entries were ignored, and a template YAML's raised an unnamed error.
+  `None` for one of those sections, or for a font size or margin, means unset.
+  **Migration:** to keep the 6.0.0 look for a known client, pass
+  `ReportGenerator(client_name, branding_config={})`; a template YAML given as
+  `template_config` still replaces the client branding for the page template.
+  To include remote logos, pass `fetch_remote_assets=True` (this needs network
+  access at build time) to `ReportGenerator`, `AnalyticsReportGenerator` or
+  `SocialMediaReportGenerator`, or point `logo.image_url` at a local file,
+  which needs no opt-in.
 - Census catalog cache filenames percent-encode dataset ids, keeping slash-based
   ids such as `eits/resconst` and `dec/pl` in the cache directory and visible to
   cache clearing. Yearless keys use a distinct `none` suffix, and cache logging
@@ -450,8 +501,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `check_security.py`, which the CI bandit step replaces, moved to
   `scripts/archive/`.
 
+### Added
+
+- `ReportGenerator(..., branding_config=...)` takes a branding dictionary
+  directly, so charts, tables and the page template share one brand without
+  registering a client profile. The dictionary is copied; `None` (the
+  default) looks the branding up by client name. `BaseReportTemplate` accepts
+  the same dictionary as `branding_config` (it raises `ValueError` when given
+  both that and `branding_config_path`). The argument was first proposed in
+  #2002 (#1993).
+- `ReportGenerator(..., fetch_remote_assets=False)` and
+  `BaseReportTemplate(..., fetch_remote_assets=False)`: opt in to downloading
+  `http(s)` logo URLs when a PDF is built (#1789).
+- `BrandingConfigError` and its subclass `BrandingColorError`, both
+  `ValueError`s, in `siege_utilities.reporting.client_branding`, and
+  `TableRowTooTallError` (a `ValueError`) in
+  `siege_utilities.reporting.report_generator`.
+- `AnalyticsReportGenerator` and `SocialMediaReportGenerator` take the same
+  `branding_config=None` and `fetch_remote_assets=False` arguments and pass
+  them to their `ReportGenerator`, so facade reports can use a branding
+  dictionary and opt in to remote logos (#1789).
+
 ### Fixed
 
+- Tables from `ReportGenerator.add_table_section` no longer run off the page
+  (#1993). A table whose cells fit on one line within the margins is built
+  exactly as before. A wider one gets column widths from its content: narrow
+  columns keep their width, the wide ones share the rest, and plain values in
+  the narrowed columns wrap. Words and numbers are not broken while the table
+  can fit without it. Otherwise text may break inside words down to a 24 pt
+  column, while numbers, and strings that read as numbers (`"1,234,567.89"`,
+  `"$12.50"`, `"45.25%"`, `"(1,234)"`, dates, phone numbers, ZIP codes), are
+  never split. A table that still cannot fit gives each narrowed text column
+  24 pt, is wider than the frame, and logs a warning naming the section. If
+  wrapping would make the repeated header row too tall to leave room for rows
+  on a page, the table is drawn unfitted, as before, with a warning. Wrapped
+  cells keep their line breaks, print `None` as an empty cell and print markup
+  literally. Cells that are already ReportLab flowables, such as the
+  `Paragraph` cells of the facade reports, are never changed, and an
+  all-flowable table is sized by ReportLab as before. A body row taller than a
+  page no longer raises `LayoutError`: it is cut at line boundaries into
+  consecutive rows, each of which fits a page under the repeated header, so
+  all of its content is drawn, in order and on the page. Plain values in such
+  a row (numbers, dates, `bytes` and other objects included) are drawn as
+  text, multi-line text keeps its lines, and cells that are already flowables
+  (including `ImageAndFlowables`) are cut with their own `split`; small
+  container flowables such as `KeepInFrame` or `ListFlowable` beside a tall
+  cell are drawn whole. A row that cannot be cut that way (an image, a
+  `KeepInFrame` or a `ListFlowable` that is itself taller than a page, or
+  several flowables in one cell that together are) raises
+  `TableRowTooTallError` (a `ValueError`) naming the section, row and column,
+  and no PDF is written. So does a repeated header row taller than the page
+  frame less 72 pt of room for rows, even when every row would fit below it,
+  where 6.0.0 built such a table. Tables keep Helvetica and
+  Helvetica-Bold whatever the brand's `fonts` say; only their colours follow
+  the brand. The fitting approach builds on #2002.
+- A branded PDF whose `fonts.default_font` is not registered with ReportLab
+  (for example the `masai_interactive` profile's `Liberation-Serif` where the
+  Liberation fonts are not installed) now uses Helvetica, with a warning naming
+  the font, instead of raising `KeyError` while building the template (#1789).
+- A local logo file that does not exist is logged once per document, not once
+  per page (#1789).
 - Report facade charts and sample tables, three follow-ups to the facade PDF
   change of #1461:
   - a NumPy complex chart value (`numpy.complex64`, `numpy.complex128`) now
@@ -490,8 +600,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   between the page number and the body frame, moving up rather than over the
   page number when it wraps. Text that still does not fit is cut and ends with
   an ellipsis. The page number is kept on the page when the bottom margin is
-  small. The header, footer and page number are still drawn on the first page
-  only (#1998).
+  small. The header, footer and page number are now drawn on every page, not
+  only the first (#1998, #1789).
 - `ChartGenerator.create_pie_chart` sizes its legend table from the measured
   width of its columns and keeps it inside the saved image for both
   `legend_position="right"` and `"bottom"`; the pie is shrunk to make room.

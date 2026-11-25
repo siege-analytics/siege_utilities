@@ -20,7 +20,13 @@ log = logging.getLogger(__name__)
 # is stripped rather than passed through into a filesystem path.
 _SLUG_SAFE = re.compile(r"[^a-z0-9_]+")
 
-__all__ = ["ClientBrandingError", "ClientBrandingManager", "ClientBrandingNotFoundError"]
+__all__ = [
+    "BrandingColorError",
+    "BrandingConfigError",
+    "ClientBrandingError",
+    "ClientBrandingManager",
+    "ClientBrandingNotFoundError",
+]
 
 
 def _slugify_client_name(client_name: str) -> str:
@@ -60,6 +66,25 @@ class ClientBrandingError(RuntimeError):
 
 class ClientBrandingNotFoundError(LookupError):
     """Raised when a named client's branding configuration does not exist."""
+
+
+class BrandingConfigError(ValueError):
+    """Raised when a branding configuration entry has the wrong shape.
+
+    The message names the entry, for example ``page_margins.left`` or
+    ``footer.page_number_format``, and the value that was given.
+    """
+
+
+class BrandingColorError(BrandingConfigError):
+    """Raised when a branding ``colors`` entry cannot be read as a colour.
+
+    The message names the ``colors.<key>`` entry and its value. Accepted forms
+    are those matplotlib accepts for charts: names (``"navy"``,
+    ``"tab:blue"``), hex with or without alpha (``"#abc"``, ``"#13293D80"``)
+    and RGB(A) tuples of floats in 0-1, plus the ``"0x13293D"`` strings and
+    integers that ReportLab's ``HexColor`` reads.
+    """
 
 
 class ClientBrandingManager:

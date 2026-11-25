@@ -3,10 +3,13 @@ Main report generator for siege_utilities reporting system.
 Orchestrates the creation of comprehensive reports with charts, tables, and branding.
 """
 
+import copy
 import logging
 import os
 import re
 import uuid
+from dataclasses import dataclass
+from numbers import Number
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime
@@ -22,13 +25,22 @@ except ImportError:
 # ReportLab imports for PDF generation
 try:
     from reportlab.platypus import Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.platypus import Flowable, XPreformatted
     from reportlab.platypus import Image as RLImage
     from reportlab.platypus.tableofcontents import TableOfContents
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER
+    from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib.units import inch
+    from reportlab.pdfbase.pdfmetrics import stringWidth
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
+    Flowable = None
+    XPreformatted = None
+    TA_CENTER = None
+    ParagraphStyle = None
+    stringWidth = None
     Paragraph = None
     Spacer = None
     Table = None
@@ -39,6 +51,10 @@ except ImportError:
     colors = None
     inch = None
 
+from ._brand_colors import (
+    AA_GRAPHIC_CONTRAST, brand_color, contrast_ratio, readable_text_color,
+    validate_brand_colors, validate_branding_layout,
+)
 from ._markup import _escape_paragraph
 from .templates.base_template import BaseReportTemplate
 from .chart_generator import ChartGenerator
@@ -48,7 +64,253 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "ReportGenerator",
+    "TableRowTooTallError",
 ]
+
+
+class TableRowTooTallError(ValueError):
+    """Raised when a report table row is taller than a page and cannot be split.
+
+    Rows of text are split across pages; a row holding an image or several
+    flowables taller than a page cannot be. The message names the table
+    section, row and column. No PDF is written.
+    """
+
+# ReportLab defaults: a Frame pads 6 pt on each side, and so does a table cell.
+_FRAME_PADDING = 12
+_CELL_PADDING = 12
+# Narrowest a shrunk table column may become (12 pt of text plus padding).
+_MIN_COLUMN_WIDTH = 24
+# Extra width on a word or number floor so float round-off never breaks it.
+_WIDTH_SLACK = 1.0
+# Formatted numbers, amounts, percentages, dates, phone numbers, ZIP codes.
+_NUMERIC_CHARACTERS = frozenset("0123456789.,:/%$€£¥()+-' ")
+_MAX_NUMERIC_TOKEN = 40
+# Room a repeated header row must leave on a page for body rows.
+_MIN_BODY_HEIGHT = 72
+# Vertical cell padding: ReportLab's 3 pt top and bottom; the style gives the
+# first row 10 pt at the bottom, 7 pt more.
+_BODY_ROW_PADDING = 6
+_HEADER_EXTRA_PADDING = 7
+# Fonts of the table style: row 0 is the header row, as it always has been.
+_HEADER_FONT = ('Helvetica-Bold', 10)
+_BODY_FONT = ('Helvetica', 9)
+
+
+@dataclass(frozen=True)
+class _TablePalette:
+    """Colours of a report table, from the branding config or the defaults."""
+
+    header_background: Any
+    header_text: Any
+    body_background: Any
+    body_text: Any
+    grid: Any
+
+    def commands(self) -> List[tuple]:
+        """Return the TableStyle commands; unbranded, they are the 4.x style."""
+        return [
+            ('BACKGROUND', (0, 0), (-1, 0), self.header_background),
+            ('TEXTCOLOR', (0, 0), (-1, 0), self.header_text),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), _HEADER_FONT[0]),
+            ('FONTSIZE', (0, 0), (-1, 0), _HEADER_FONT[1]),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 1), (-1, -1), self.body_background),
+            ('TEXTCOLOR', (0, 1), (-1, -1), self.body_text),
+            ('FONTNAME', (0, 1), (-1, -1), _BODY_FONT[0]),
+            ('FONTSIZE', (0, 1), (-1, -1), _BODY_FONT[1]),
+            ('GRID', (0, 0), (-1, -1), 0.5, self.grid),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]
+
+    def header_commands(self, first_row: int, last_row: int) -> List[tuple]:
+        """Header-row look for rows *first_row*..*last_row* (a split first row)."""
+        start, stop = (0, first_row), (-1, last_row)
+        return [
+            ('BACKGROUND', start, stop, self.header_background),
+            ('TEXTCOLOR', start, stop, self.header_text),
+            ('FONTNAME', start, stop, _HEADER_FONT[0]),
+            ('FONTSIZE', start, stop, _HEADER_FONT[1]),
+        ]
+
+    def paragraph_style(self, row_index: int) -> 'ParagraphStyle':
+        """Return the style a wrapped cell needs to look like the row's text."""
+        is_header = row_index == 0
+        font_name, font_size = _HEADER_FONT if is_header else _BODY_FONT
+        return ParagraphStyle(
+            'su_table_header' if is_header else 'su_table_body',
+            fontName=font_name, fontSize=font_size, leading=font_size * 1.2,
+            textColor=self.header_text if is_header else self.body_text,
+            alignment=TA_CENTER,
+        )
+
+
+def _is_flowable_cell(cell: Any) -> bool:
+    """True for cells ReportLab lays out itself: a flowable or a list of them."""
+    if isinstance(cell, Flowable):
+        return True
+    return isinstance(cell, (list, tuple)) and bool(cell) and all(
+        isinstance(item, Flowable) for item in cell
+    )
+
+
+@dataclass(frozen=True)
+class _CellWidths:
+    """Widths one cell needs, cell padding included."""
+
+    natural: float  # everything on one line (flowables: at most the frame)
+    whole_words: float  # the longest word or number, so nothing is broken
+    unbreakable: float  # numbers are never split; text and flowables can be
+
+
+def _cell_widths(cell: Any, font: tuple, avail_width: float) -> _CellWidths:
+    """Measure a cell for column fitting."""
+    if cell is None:
+        return _CellWidths(_CELL_PADDING, _CELL_PADDING, _CELL_PADDING)
+    if _is_flowable_cell(cell):
+        natural = whole_words = 0.0
+        for item in (cell if isinstance(cell, (list, tuple)) else [cell]):
+            width, _ = item.wrapOn(None, avail_width, 1e6)
+            line_widths = getattr(item, 'getActualLineWidths0', None)
+            narrowest = width
+            if line_widths is not None:
+                # Text flowables: the longest line, and the longest word.
+                width = max(line_widths(), default=0.0)
+                narrowest = min(item.minWidth(), width)
+            # Other flowables (images, drawings) keep their wrapped width; their
+            # minWidth() may read attributes they do not have.
+            natural = max(natural, width)
+            whole_words = max(whole_words, narrowest)
+        return _CellWidths(natural + _CELL_PADDING, whole_words + _CELL_PADDING, _CELL_PADDING)
+    text = _cell_text(cell)
+    natural = max(stringWidth(line, *font) for line in text.split('\n')) + _CELL_PADDING
+    if isinstance(cell, Number) or _looks_numeric(text):
+        # A wrapped cell is laid out in colWidth - padding; the slack keeps
+        # float round-off in that subtraction from breaking the token.
+        return _CellWidths(natural, natural + _WIDTH_SLACK, natural + _WIDTH_SLACK)
+    words = text.split()
+    whole_words = max((stringWidth(word, *font) for word in words), default=0.0)
+    return _CellWidths(natural, whole_words + _CELL_PADDING + _WIDTH_SLACK, _CELL_PADDING)
+
+
+def _looks_numeric(text: str) -> bool:
+    """True for a formatted number, amount, percentage, date, phone or ZIP code.
+
+    Such strings (``"1,234,567.89"``, ``"$12.50"``, ``"45.25%"``,
+    ``"(1,234)"``, ``"2026-11-23"``, ``"512-555-0100"``) are kept whole like
+    numbers, because breaking one inside makes it read as two values.
+    """
+    token = text.strip()
+    return (
+        0 < len(token) <= _MAX_NUMERIC_TOKEN
+        and any(character.isdigit() for character in token)
+        and set(token) <= _NUMERIC_CHARACTERS
+    )
+
+
+def _widths_at_least(floors: List[float], natural: List[float], avail_width: float) -> List[float]:
+    """Fit columns into *avail_width* without going below *floors*.
+
+    Every column gets ``min(max(level, floor), natural)`` for the largest
+    level that fits, so columns needing less than the level keep their
+    natural width and the wider ones share the rest equally. When the
+    floors alone are wider than *avail_width*, the floors are returned.
+    """
+    if sum(floors) >= avail_width:
+        return list(floors)
+    low, high = 0.0, max(natural)
+    for _ in range(60):
+        level = (low + high) / 2
+        total = sum(min(max(level, floor), need) for floor, need in zip(floors, natural))
+        if total > avail_width:
+            high = level
+        else:
+            low = level
+    return [min(max(low, floor), need) for floor, need in zip(floors, natural)]
+
+
+def _fit_column_widths(columns: List[List[_CellWidths]], avail_width: float) -> List[float]:
+    """Choose column widths for a table wider than *avail_width*.
+
+    First without breaking any word or number; if that cannot fit, text
+    may break down to ``_MIN_COLUMN_WIDTH`` per column, but numbers are
+    never split. The result can still be wider than *avail_width*.
+    """
+    natural = [max(cell.natural for cell in column) for column in columns]
+    whole_words = [min(max(cell.whole_words for cell in column), need)
+                   for column, need in zip(columns, natural)]
+    widths = _widths_at_least(whole_words, natural, avail_width)
+    if sum(widths) <= avail_width + 0.01:
+        return widths
+    unbreakable = [
+        min(max(_MIN_COLUMN_WIDTH, max(cell.unbreakable for cell in column)), need)
+        for column, need in zip(columns, natural)
+    ]
+    return _widths_at_least(unbreakable, natural, avail_width)
+
+
+def _preformatted_cell(text: str, style: 'ParagraphStyle') -> 'XPreformatted':
+    """Keep a multi-line plain string's lines exactly, as a splittable flowable."""
+    return XPreformatted(_escape_paragraph(text.replace('\r\n', '\n')), style)
+
+
+def _cell_text(value: Any) -> str:
+    """The text a plain table cell shows: ``None`` empty, bytes decoded, else ``str``."""
+    if value is None:
+        return ''
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value).decode('utf-8', 'replace')
+    return str(value)
+
+
+def _cell_chunks(cell: Any, width: float, height: float, style: 'ParagraphStyle',
+                 title: str, row: int, column: int) -> List[Any]:
+    """Cut one cell of a too-tall row into pieces no taller than *height*.
+
+    Plain values become preformatted text (lines kept, nothing dropped);
+    flowables are split with their own ``split``. Every piece is a flowable,
+    so ReportLab never has to split inside a row.
+
+    Raises:
+        TableRowTooTallError: If the cell is taller than *height* and cannot
+            be split, or splitting stops making progress.
+    """
+    def too_tall(reason: str) -> TableRowTooTallError:
+        return TableRowTooTallError(
+            f"Table section {title!r}: row {row}, column {column} is taller than a page and "
+            f"{reason}; shorten it or split it into several rows"
+        )
+
+    if isinstance(cell, (list, tuple)) and _is_flowable_cell(cell):
+        total = sum(item.wrapOn(None, width, 1e6)[1] for item in cell)
+        if total <= height:
+            return [cell]
+        raise too_tall("holds several flowables, which cannot be split")
+    flowable = cell if isinstance(cell, Flowable) else _preformatted_cell(_cell_text(cell), style)
+    chunks: List[Any] = []
+    while True:
+        _, current = flowable.wrapOn(None, width, 1e6)
+        if current <= height:
+            chunks.append(flowable)
+            return chunks
+        parts = flowable.splitOn(None, width, height)
+        if len(parts) != 2:
+            raise too_tall(f"its {type(flowable).__name__} cannot be split")
+        first, rest = parts
+        _, first_height = first.wrapOn(None, width, 1e6)
+        _, rest_height = rest.wrapOn(None, width, 1e6)
+        if first_height > height or rest_height >= current:
+            raise too_tall(f"its {type(flowable).__name__} does not split into page-sized parts")
+        chunks.append(first)
+        flowable = rest
+
+
+def _wrapped_cell(cell: Any, style: 'ParagraphStyle') -> 'Paragraph':
+    """Wrap a plain value: escaped, ``None`` empty, bytes decoded, line breaks kept."""
+    text = _escape_paragraph(_cell_text(cell))
+    text = text.replace('\r\n', '\n').replace('\n', '<br/>')
+    return Paragraph(text, style)
 
 
 class ReportGenerator:
@@ -57,25 +319,60 @@ class ReportGenerator:
     Integrates templates, charts, and data sources.
     """
 
-    def __init__(self, client_name: str, output_dir: Optional[Path] = None):
+    def __init__(self, client_name: str, output_dir: Optional[Path] = None,
+                 branding_config: Optional[Dict[str, Any]] = None,
+                 fetch_remote_assets: bool = False):
         """
         Initialize the report generator.
-        
+
         Args:
             client_name: Name of the client for branding
             output_dir: Directory for output reports
+            branding_config: Optional branding dictionary in the shape
+                ``ClientBrandingManager`` stores (``colors``, ``fonts``,
+                ``header``, ``footer``, ``page_margins``, ``logo``). It is
+                copied and used for the charts, the tables and the page
+                template, without registering a client profile. ``None``
+                (the default) looks the branding up by ``client_name``; an
+                empty dict gives an unbranded report even for a known client.
+            fetch_remote_assets: Download ``http(s)`` logo URLs from the
+                branding when building a PDF. Off by default, so PDF builds
+                make no network calls: remote logos are left out (logged once
+                per document) and local logo paths still work.
+
+        Raises:
+            TypeError: If ``branding_config`` is neither None nor a dict.
+            BrandingColorError: If a ``colors`` entry the reports use
+                (``primary``, ``secondary``, ``accent``, ``text_color``,
+                ``header_footer_text_color``) is present but not a colour.
+            BrandingConfigError: If a page-layout entry (``fonts``,
+                ``header``, ``footer``, ``logo``, ``page_margins``) has the
+                wrong shape.
         """
         self.client_name = client_name
+        self.fetch_remote_assets = fetch_remote_assets
         self.output_dir = output_dir or Path.cwd() / "reports"
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.branding_manager = ClientBrandingManager()
-        try:
-            self.branding_config = self.branding_manager.get_client_branding(client_name)
-        except ClientBrandingNotFoundError:
-            log.warning(f"No branding configuration found for {client_name}, using defaults")
-            self.branding_config = {}
-        
+        if branding_config is not None:
+            if not isinstance(branding_config, dict):
+                raise TypeError(
+                    f"branding_config must be a dict or None, got {type(branding_config).__name__}"
+                )
+            self.branding_config = copy.deepcopy(branding_config)
+        else:
+            try:
+                self.branding_config = self.branding_manager.get_client_branding(client_name)
+            except ClientBrandingNotFoundError:
+                log.warning(f"No branding configuration found for {client_name}, using defaults")
+                self.branding_config = {}
+        # Charts hand these colours to matplotlib/seaborn at once, so a bad
+        # one is reported here, by name, rather than as a palette error; the
+        # page-layout entries are checked here too, before any PDF is built.
+        validate_brand_colors(self.branding_config)
+        validate_branding_layout(self.branding_config)
+
         self.chart_generator = ChartGenerator(
             self.branding_config, output_dir=self.output_dir,
             max_chart_width=6.0, max_chart_height=8.5,
@@ -455,6 +752,11 @@ class ReportGenerator:
         """
         Create a report template for PDF generation.
 
+        The template gets this generator's branding (headers, footers, page
+        numbers, logos, margins and text colours) unless *template_config*
+        names a branding YAML file, which then takes its place. Remote logos
+        are downloaded only if this generator has ``fetch_remote_assets``.
+
         Args:
             output_path: Output PDF file path
             template_config: Optional path to template configuration file
@@ -464,11 +766,211 @@ class ReportGenerator:
         """
         from .templates.base_template import BaseReportTemplate
 
-        config_path = Path(template_config) if template_config else None
+        if template_config:
+            return BaseReportTemplate(
+                output_filename=output_path,
+                branding_config_path=Path(template_config),
+                fetch_remote_assets=self.fetch_remote_assets,
+            )
         return BaseReportTemplate(
             output_filename=output_path,
-            branding_config_path=config_path
+            branding_config=self.branding_config,
+            fetch_remote_assets=self.fetch_remote_assets,
         )
+
+    def _table_palette(self) -> _TablePalette:
+        """Return the table colours for this generator's branding.
+
+        Without ``colors.primary`` the table keeps the 4.x look (grey header
+        with whitesmoke text, beige body, black grid); ``colors.text_color``
+        still colours the body text. With a primary colour the header takes
+        it, the header text is whichever of whitesmoke and the brand text
+        colour is readable on it (WCAG AA), the body is white and the grid
+        is the primary colour when it shows on white (3:1), else the text
+        colour.
+
+        Raises:
+            BrandingColorError: If a colour in the branding is not a colour.
+        """
+        brand_colours = (self.branding_config or {}).get('colors') or {}
+        text_value = brand_colours.get('text_color')
+        body_text = colors.black if text_value is None else brand_color(text_value, 'text_color')
+        primary = brand_colours.get('primary')
+        if primary is None:
+            return _TablePalette(colors.grey, colors.whitesmoke, colors.beige, body_text, colors.black)
+        header = brand_color(primary, 'primary')
+        header_text = readable_text_color(
+            header, preferred=[colors.whitesmoke, body_text], fallback=[colors.white, colors.black],
+        )
+        grid = header if contrast_ratio(header, colors.white) >= AA_GRAPHIC_CONTRAST else body_text
+        return _TablePalette(header, header_text, colors.white, body_text, grid)
+
+    def _build_table(self, table_data: List[List[Any]], repeat_rows: int,
+                     title: str, template) -> 'Table':
+        """Build a table that fits the page frame (#1993).
+
+        A table whose cells fit on one line within the page margins is built
+        exactly as before, and so is a table made only of flowables (as the
+        facade reports build them), which ReportLab already sizes to the
+        frame. Otherwise the columns get widths from their content: columns
+        needing less than an equal share keep their natural width and the
+        others share the rest; plain values in the narrowed columns are
+        wrapped. Cells that are already flowables are never changed. When a
+        row is taller than a page it may split across pages instead of
+        failing.
+
+        Raises:
+            BrandingColorError: If a colour in the branding is not a colour.
+        """
+        palette = self._table_palette()
+        style = TableStyle(palette.commands())
+        avail_width = template.doc.width - _FRAME_PADDING
+        avail_height = template.doc.height - _FRAME_PADDING
+
+        flowable_cells = [[_is_flowable_cell(cell) for cell in row] for row in table_data]
+        all_flowable = all(all(row) for row in flowable_cells)
+        columns: List[List[_CellWidths]] = []
+        if not all_flowable:
+            fonts = [_HEADER_FONT] + [_BODY_FONT] * (len(table_data) - 1)
+            columns = [[] for _ in range(max(len(row) for row in table_data))]
+            for row, font in zip(table_data, fonts):
+                for index, cell in enumerate(row):
+                    columns[index].append(_cell_widths(cell, font, avail_width))
+        natural = [max(cell.natural for cell in column) for column in columns]
+
+        # Overflowing into the frame's own padding stays inside the margins,
+        # so only a table wider than the margins is refitted.
+        table = None
+        if sum(natural) > template.doc.width + 0.01:
+            table, cells = self._fitted_table(
+                table_data, repeat_rows, title, columns, natural, flowable_cells,
+                palette, style, avail_width, avail_height,
+            )
+            if table is not None:
+                table_data = cells
+        if table is None:
+            table = Table(table_data, repeatRows=repeat_rows)
+            table.setStyle(style)
+        return self._allow_tall_rows(table, table_data, repeat_rows, palette, style,
+                                     avail_width, avail_height, title)
+
+    def _fitted_table(self, table_data: List[List[Any]], repeat_rows: int, title: str,
+                      columns: List[List[_CellWidths]], natural: List[float],
+                      flowable_cells: List[List[bool]], palette: _TablePalette,
+                      style: 'TableStyle', avail_width: float, avail_height: float):
+        """Return the table with content-sized columns and its cells, or ``(None, None)``.
+
+        ``None`` means the wrapped header row would leave no room on a page
+        for the body (a repeated header row cannot split), so the caller
+        builds the table unfitted, as before, after a warning.
+        """
+        widths = _fit_column_widths(columns, avail_width)
+        if sum(widths) > avail_width + 0.01:
+            log.warning(
+                "Table section %r has %d columns and cannot fit the %.0f pt frame "
+                "without splitting numbers or narrowing text columns below %d pt; "
+                "it is %.0f pt wide",
+                title, len(columns), avail_width, _MIN_COLUMN_WIDTH, sum(widths),
+            )
+        narrowed = [width < need - 0.01 for width, need in zip(widths, natural)]
+        cells = [
+            [
+                _wrapped_cell(cell, palette.paragraph_style(row_index))
+                if narrowed[index] and not flowable_cells[row_index][index] else cell
+                for index, cell in enumerate(row)
+            ]
+            for row_index, row in enumerate(table_data)
+        ]
+        table = Table(cells, colWidths=widths, repeatRows=repeat_rows)
+        table.setStyle(style)
+        if repeat_rows:
+            table.wrap(avail_width, avail_height)
+            header_height = sum(table._rowHeights[:repeat_rows])
+            if header_height > avail_height - _MIN_BODY_HEIGHT:
+                log.warning(
+                    "Table section %r: its wrapped header row would be %.0f pt tall, "
+                    "leaving no room for rows in the %.0f pt page frame; the table is "
+                    "drawn without fitting its columns",
+                    title, header_height, avail_height,
+                )
+                return None, None
+        return table, cells
+
+    def _allow_tall_rows(self, table: 'Table', table_data: List[List[Any]], repeat_rows: int,
+                         palette: _TablePalette, style: 'TableStyle',
+                         avail_width: float, avail_height: float, title: str = '') -> 'Table':
+        """Split a row taller than a page into rows that each fit a page.
+
+        Only flowables and multi-line text can make a row that tall, so other
+        tables are returned untouched and paginate as before. Each cell of a
+        too-tall row becomes a flowable (plain values are drawn as text, with
+        their lines kept) and is cut at line boundaries into consecutive rows
+        that fit under the repeated header on one page. The table then splits
+        only between whole rows, so no cell content is dropped or drawn off
+        the page; ReportLab's in-row splitting is never used.
+
+        Raises:
+            TableRowTooTallError: If such a row holds a cell that cannot be
+                split (an image or several flowables taller than a page), or
+                a resulting row would still not fit; no PDF is written then.
+        """
+        def multi_line(cell: Any) -> bool:
+            # Any plain value whose shown text has several lines (str, bytes,
+            # or an object such as an array whose str() spans lines).
+            return not _is_flowable_cell(cell) and '\n' in _cell_text(cell)
+
+        if not any(_is_flowable_cell(cell) or multi_line(cell) for row in table_data for cell in row):
+            return table
+        table.wrap(avail_width, avail_height)
+        heights = list(table._rowHeights)
+        header_height = sum(heights[:repeat_rows])
+        if repeat_rows and header_height > avail_height - _MIN_BODY_HEIGHT:
+            raise TableRowTooTallError(
+                f"Table section {title!r}: its header row is {header_height:.0f} pt tall and is "
+                f"repeated on every page, leaving no room for rows in the {avail_height:.0f} pt "
+                f"page frame; shorten the column headers"
+            )
+        limit = avail_height - header_height
+        tall_rows = {index for index in range(repeat_rows, len(heights)) if heights[index] > limit}
+        if not tall_rows:
+            return table
+
+        widths = list(table._colWidths)
+        rows: List[List[Any]] = []
+        extra_commands: List[tuple] = []
+        for index, row in enumerate(table_data):
+            if index not in tall_rows:
+                rows.append(list(row))
+                continue
+            padding = _BODY_ROW_PADDING + (_HEADER_EXTRA_PADDING if index == 0 else 0)
+            piece_height = limit - padding - 1.0
+            # Half-page pieces let the first one start below a heading on the
+            # current page; every piece still fits a page under the header.
+            if piece_height >= 2 * _MIN_BODY_HEIGHT:
+                piece_height /= 2
+            pieces = [
+                _cell_chunks(cell, widths[column] - _CELL_PADDING, piece_height,
+                             palette.paragraph_style(index), title, index, column)
+                for column, cell in enumerate(row)
+            ]
+            first = len(rows)
+            for part in range(max(len(piece) for piece in pieces)):
+                rows.append([piece[part] if part < len(piece) else '' for piece in pieces])
+            last = len(rows) - 1
+            extra_commands.append(('VALIGN', (0, first), (-1, last), 'TOP'))
+            if index == 0:
+                extra_commands.extend(palette.header_commands(first, last))
+
+        table = Table(rows, colWidths=widths, repeatRows=repeat_rows)
+        table.setStyle(TableStyle(list(style.getCommands()) + extra_commands))
+        table.wrap(avail_width, avail_height)
+        tallest = max(table._rowHeights[repeat_rows:], default=0.0)
+        if tallest > limit + 0.01:
+            raise TableRowTooTallError(
+                f"Table section {title!r}: a row is still {tallest:.0f} pt tall after splitting, "
+                f"more than the {limit:.0f} pt a page leaves under the header"
+            )
+        return table
 
     def generate_pdf_report(self, report_content: Dict[str, Any],
                            output_path: str, template_config: str = None) -> None:
@@ -911,22 +1413,7 @@ class ReportGenerator:
                     table_data = [headers] + table_data
 
             if table_data:
-                table = Table(table_data, repeatRows=1 if headers else 0)
-                table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('FONTSIZE', (0, 0), (-1, 0), 10),
-                    ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-                    ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
-                    ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-                    ('FONTSIZE', (0, 1), (-1, -1), 9),
-                    ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ]))
-                story.append(table)
+                story.append(self._build_table(table_data, 1 if headers else 0, title, template))
                 story.append(Spacer(1, 12))
             else:
                 log.warning("Empty content for table section %r", title)

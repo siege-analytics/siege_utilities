@@ -46,20 +46,33 @@ class AnalyticsReportGenerator:
     Integrates with Google Analytics, databases, and Spark dataframes.
     """
 
-    def __init__(self, client_name: str, output_dir: Optional[Path] = None):
+    def __init__(self, client_name: str, output_dir: Optional[Path] = None,
+                 branding_config: Optional[Dict[str, Any]] = None,
+                 fetch_remote_assets: bool = False):
         """
         Initialize the analytics report generator.
-        
+
         Args:
             client_name: Name of the client for branding
             output_dir: Directory for output reports
+            branding_config: Branding dictionary passed to ``ReportGenerator``;
+                ``None`` looks the branding up by ``client_name``.
+            fetch_remote_assets: Download ``http(s)`` logo URLs when building
+                the PDF; off by default, so builds make no network calls.
+
+        Raises:
+            TypeError: If ``branding_config`` is neither None nor a dict.
+            BrandingConfigError: If the branding has a malformed entry.
         """
         self.client_name = client_name
         self.output_dir = output_dir or Path.cwd() / "reports"
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # Initialize components
-        self.report_generator = ReportGenerator(client_name, output_dir)
+        self.report_generator = ReportGenerator(
+            client_name, output_dir,
+            branding_config=branding_config, fetch_remote_assets=fetch_remote_assets,
+        )
         self.chart_generator = ChartGenerator()
 
     def create_google_analytics_report(self, ga_data: Dict[str, Any], 
