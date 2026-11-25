@@ -2,9 +2,12 @@
 
 import inspect
 import json
+import logging
 import re
 
 import pytest
+
+from siege_utilities.core.logging import get_logger
 
 from siege_utilities.config.databases import (
     create_database_config,
@@ -27,6 +30,12 @@ from siege_utilities.config.databases import (
 def test_password_roundtrip_uses_reported_env_var(
     name, env_name, tmp_path, monkeypatch, caplog,
 ):
+    # An earlier test can leave the library's default logger cached with level
+    # NOTSET under the CRITICAL root of the test settings, or disabled, so
+    # nothing reaches caplog (#2053). Pin the logger the library really uses.
+    emitter = get_logger()
+    monkeypatch.setattr(emitter, "disabled", False)
+    caplog.set_level(logging.DEBUG, logger=emitter.name)
     config = create_database_config(
         name, "postgres", "localhost", 5432, "db", "user", "original-secret",
     )
@@ -36,7 +45,10 @@ def test_password_roundtrip_uses_reported_env_var(
     saved = json.loads(saved_text)
     assert saved["password"] == f"${{{env_name}}}"
     assert re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", env_name)
-    assert f"${{{env_name}}}" in caplog.text
+    assert any(
+        record.levelno >= logging.WARNING and f"${{{env_name}}}" in record.getMessage()
+        for record in caplog.records
+    )
     assert "original-secret" not in saved_text + caplog.text
     assert config["password"] == "original-secret"
 
