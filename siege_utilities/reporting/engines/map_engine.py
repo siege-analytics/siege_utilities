@@ -501,12 +501,11 @@ class MapChartMixin:
                 # pandas 2.0 refuses a float conversion of NA without na_value.
                 values = merged[value_column].to_numpy(dtype=float, na_value=np.nan)
                 result = classify_series(values, "natural_breaks", k=bins)
-                # The backends report interior breaks differently (mapclassify:
-                # each class's upper bound; numpy: the next class's lower
-                # bound), but each assigns classes consistently with its own
-                # breaks. Keep the backend's classes and show every range
-                # upper-inclusively, ending at its class's largest value, so a
-                # value on a boundary is in the range the legend shows it in.
+                # Both backends report interior breaks as class maxima and
+                # assign classes consistently with their own breaks. Keep the
+                # backend's classes and show every range upper-inclusively,
+                # ending at its class's largest value, so a value on a
+                # boundary is in the range the legend shows it in.
                 valid = (result.bins >= 0) & ~np.isnan(values)
                 class_count = len(result.breaks) - 1
                 uppers = [
@@ -514,7 +513,9 @@ class MapChartMixin:
                     if (valid & (result.bins == i)).any() else result.breaks[i + 1]
                     for i in range(class_count)
                 ]
-                bin_edges = np.asarray([np.nanmin(values)] + uppers, dtype=float)
+                # Start the legend at the smallest classified value; non-finite
+                # inputs (bin -1, e.g. -inf) are not drawn and must not set it.
+                bin_edges = np.asarray([values[valid].min()] + uppers, dtype=float)
                 classified = pd.Series(
                     np.where(valid, result.bins, np.nan).astype(float), index=merged.index
                 )

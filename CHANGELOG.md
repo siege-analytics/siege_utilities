@@ -173,6 +173,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   containing `/` or other percent-encoded characters and for each yearless
   entry (formerly `_None.json`), and delete the old files by hand if disk
   space matters.
+- PostGIS and DuckDB `upload_spatial_data` (and `upload_to_postgis` /
+  `upload_to_duckdb`) default to `if_exists='fail'` instead of `'replace'`, so
+  an upload no longer silently replaces an existing table. DuckDB also accepts
+  `'append'` and raises for any other value, and rejects an input column named
+  `geometry_wkt` (its storage column), which v6.0.0 silently overwrote.
+  **Migration:** pass `if_exists='replace'` where replacing an existing table
+  is intended, and rename any `geometry_wkt` column before uploading (#1818).
+- PostGIS and DuckDB `execute_spatial_query` return rows for every
+  row-returning statement, including CTEs (`WITH ...`) and
+  `INSERT`/`UPDATE`/`DELETE ... RETURNING`. In v6.0.0 only queries starting
+  with `SELECT` returned a GeoDataFrame, so a CTE or `RETURNING` write returned
+  a row count (PostGIS) or the first value of its result (DuckDB) and its rows
+  were lost. Fetched `RETURNING` rows are decoded
+  without replaying the write. Tabular results come back without an active
+  geometry; other statements still return the affected-row count, or -1
+  (#1414); a DuckDB `CHECKPOINT` currently returns an empty frame instead
+  (#2036). **Migration:** code that read a number from a CTE or `RETURNING`
+  query now receives a GeoDataFrame; use `len(result)` for the count or read
+  the returned rows.
+- PostGIS `execute_spatial_query` inside a caller's transaction no longer
+  rolls back that transaction on the caller's behalf, and commits it only for a
+  write. A failed statement rolls back to a savepoint and keeps the caller's
+  earlier work; in v6.0.0 the connector rolled back the whole transaction. The
+  connector still commits the caller's transaction after a statement whose
+  first word is not `SELECT` and that contains one of the write keywords
+  `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `CREATE`, `DROP`, `ALTER`, `TRUNCATE`,
+  `COPY`, `CALL`, `DO`, `GRANT` or `REVOKE`, as v6.0.0 did. Any other
+  statement does not commit: read-only statements such as `WITH ... SELECT`,
+  `EXPLAIN SELECT` or `SHOW`, and statements such as `REFRESH MATERIALIZED
+  VIEW`, `COMMENT ON` or `ANALYZE`, no longer commit the caller's pending
+  work; in v6.0.0 every statement not starting with `SELECT` committed. Leading comments and parentheses are
+  skipped when finding that first word, so a `SELECT ... FOR UPDATE` behind a
+  comment keeps the caller's transaction and row locks; v6.0.0 committed it.
+  A standalone transaction-control statement
+  such as `BEGIN`, `SAVEPOINT` or `RELEASE` runs as written, without the
+  connector committing it, and returns -1, so `BEGIN` now leaves a
+  transaction open (#1818). **Migration:** after a `SpatialQueryError` inside
+  your own transaction, call `connection.rollback()` if the earlier work
+  should be discarded; commit explicitly after read-only statements and after
+  statements without one of those write keywords; finish a
+  transaction opened with `BEGIN` with `COMMIT` or `ROLLBACK`.
+- PostGIS and DuckDB reads keep the source CRS when `crs` is omitted.
+  `download_spatial_data` and PostGIS `execute_spatial_query` previously
+  reprojected to the configured default CRS (EPSG:4326), and DuckDB labelled
+  every table EPSG:4326. Now a PostGIS result keeps its native SRID (for
+  example EPSG:3857), a PostGIS table without an SRID reads with CRS `None`,
+  and a DuckDB table read uses the CRS stored at upload. DuckDB tables written
+  before this release have no stored CRS and read with CRS `None`; asking such
+  a read to reproject with `crs=` raises `SpatialQueryError`. Tables written by
+  `convert_spatial_format(..., 'duckdb')` do not store a CRS yet either
+  (#2036). DuckDB stores the
+  CRS with `COMMENT ON TABLE`, so the `performance` and `all` extras now
+  require `duckdb>=0.10.0` (previously 0.7.0). An invalid `crs=`
+  passed to `execute_spatial_query` now raises before the query runs, and a
+  query batch that mixes a
+  transaction-control statement (`BEGIN`, `COMMIT`, `SAVEPOINT` and similar)
+  with other statements is rejected before anything executes. **Migration:**
+  pass `crs="EPSG:4326"` (or your target) to keep reprojected output; for a
+  DuckDB table written by an earlier version, pass `source_crs=` with the CRS
+  it was written in (EPSG:4326 if unsure, as before), or upload it again;
+  upgrade DuckDB to 0.10.0 or later; run transaction-control statements on
+  their own (#1818).
 
 - `databricks.dataframe_bridge.spark_to_geopandas` raises `ValueError` when the
   CRS metadata column mixes null and non-null values, even when `crs=` is
@@ -261,6 +323,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arguments (#1517). **Migration:** pass `width`/`height` in inches, and pass
   them explicitly if you depended on the old defaults; pass `geo_data=` by keyword; check any
   call that relied on the old positional shift.
+
+- Numpy Fisher-Jenks classification preserves the optimal partition with
+  `min(k, n_unique)` nonempty classes, including singleton outliers and tight
+  clusters far from the data minimum, whose segment SSE is now accumulated
+  per segment instead of from cancelling prefix sums. Both classification
+  backends use upper-inclusive bins and class maxima for natural-break edges,
+  and the no-mapclassify `create_choropleth` path colours a value on an
+  internal edge with its own (lower) class. NaN and positive/negative
+  infinity receive bin `-1` and are excluded from break calculations. When
+  the first class holds only the minimum, `breaks[0]` and `_break_low` are
+  the next float below the minimum, so that class is not merged away. On the
+  mapclassify backend, natural breaks keep every class instead of merging a
+  class that holds only the minimum, and fall back to the exact calculation
+  when mapclassify's result is not k strictly increasing edges. In 6.0.0 the
+  numpy backend of `classify_series` assigned a value exactly on an internal
+  break to the upper class (`searchsorted(..., side="right")`; the
+  mapclassify backend was already upper-inclusive), masked only NaN so
+  infinities were classified on both backends, and natural breaks on either
+  backend could differ for small, clustered or outlier data (for example
+  `[1, 2, 3]` with k=3 gave 2 classes). **Migration:** expect values on an
+  internal break to move down one class on the numpy backend, infinite
+  values to get bin `-1` on both backends, and natural breaks to change on
+  both backends; recompute stored classifications and natural breaks rather
+  than mixing them with 6.0.0 output (#1455).
+
+- Resolve configuration paths on first access so imports survive an unset
+  `HOME` and a uid without a passwd entry. Use a temporary per-uid home
+  substitute when lookup fails, and check environment overrides before
+  resolving defaults. Guard default downloads and defer Census catalog,
+  inventory, and PL cache paths too. Every path constant in
+  `siege_utilities.config.paths` (27 names, such as `LOG_DIR`, `DATA_DIR`
+  and `TEMP_DIR`), `SIEGE_UTILITIES_HOME`, `SIEGE_CACHE_DIR` and
+  `SIEGE_OUTPUT_DIR` in `siege_utilities.config.constants`, and
+  `pl_downloader.DEFAULT_CACHE_DIR` are now resolved when first read, not
+  when their module is imported. So an environment override set after
+  import but before the first read now takes effect (all 20 path variables,
+  for example `SIEGE_LOG_DIR`), a derived path first read after its parent
+  constant was reassigned follows the new parent, the names are absent
+  from `vars(module)` until first read, and `SIEGE_AUTO_INIT_DIRS=true`
+  now creates directories on first path access rather than at import.
+  **Migration:** code that relied on those directories existing
+  immediately after import must touch the path (for example through
+  `get_file_path`) or create the directory itself, and code that set a
+  path variable after import and expected it to be ignored must set it
+  before the first read (#1448).
+
+- Crosswalk availability lists only transitions with a configured Census file
+  pattern: `SUPPORTED_CROSSWALK_YEARS` (in `geo/crosswalk/relationship_types`)
+  now contains only 2010->2020 for `tract`, `block_group` and `county`; the
+  6.0.0 `(2000, 2010)` entry and the `block` geography are removed.
+  `CrosswalkClient.get_crosswalk` and `normalize_to_year` already raised
+  `ValueError` for these requests in 6.0.0 ("No crosswalk file available ..."
+  / "Crosswalk not supported ..."); they now reject them before any cache
+  access, download or crosswalk lookup, with "not supported" messages, and
+  `normalize_to_year` raises "Backward normalization is not supported:
+  <from>-><to>" when `data_year > target_year`. Equal years still return a
+  copy. `LongitudinalAligner.align` raises `ValueError` ("No supported
+  crosswalk path from <from> to <to>: backward alignment is not supported")
+  before alignment for backward transitions (2020->2010, 2010->2000,
+  2020->2000), where 6.0.0 planned reverse crosswalk steps and fell back to
+  areal interpolation. Forward alignment is unchanged: a step with no
+  published crosswalk (2000->2010, and 2010->2020 for `block`, `place` and
+  other levels outside the table) still uses areal interpolation, reported as
+  `method="areal"` with a warning, and whether that fallback stays is left to
+  #1408. A cache file placed by hand for such a step is no longer read
+  (#1494). **Migration:** normalize and align forward only (older
+  vintage to newer); stop reading `(2000, 2010)` or `block` from
+  `SUPPORTED_CROSSWALK_YEARS`; update any code that matches the old error
+  messages.
 
 ### Changed
 
@@ -401,6 +532,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ConfidentialClientApplication.remove_tokens_for_client`, which MSAL Python
   first ships in 1.27.0. Dynamics dependency errors now recommend `[crm]`, and
   CI installs it so the Dynamics tests execute instead of skipping (#1449).
+- On a connection the connector opened, a spatial query's write commits only
+  after its result is decoded and rolls back on any error, so a failed
+  multi-statement DuckDB write leaves nothing behind. A PostGIS
+  `download_spatial_data` ends the read transaction it opened, so a following
+  `execute_spatial_query` on that connection still commits (#1818). Two
+  downloads on one connector no longer share a transaction; open one yourself
+  first when both must read the same snapshot.
+  **Migration:** a DuckDB batch that writes to two attached databases, or that
+  runs `INSERT ...; CHECKPOINT`, now raises and rolls back, because DuckDB
+  forbids both inside one transaction, where v6.0.0 ran it; run such statements
+  as separate calls.
+- PostGIS uploads now run their drop, create and inserts in one explicit
+  transaction regardless of the geopandas version. In v6.0.0 a failing
+  `if_exists='replace'` also kept the existing table, because geopandas already
+  wraps an engine write in one transaction; the PostGIS change is covered by
+  mock-based tests only. DuckDB uploads run in one transaction that rolls back
+  on failure, so a failed `if_exists='replace'` keeps the original table and
+  rows. DuckDB uploads store the active geometry column whatever its name, and
+  refuse an attribute column named `geometry` when the active geometry has
+  another name, because the download would overwrite it (#1818).
+- DuckDB tables keep their CRS. `upload_spatial_data` records the full CRS in
+  the table comment, including for empty tables, and `download_spatial_data`
+  restores it, also after reconnecting. Previously every DuckDB read was
+  labelled EPSG:4326, whatever CRS was uploaded. `if_exists='append'` adds
+  rows by column name and refuses data in a different CRS; an equal CRS whose
+  WKT is spelled differently is recorded once and reads back. Arbitrary SQL
+  through `execute_spatial_query` keeps the EPSG:4326 label (#1818).
+- S2 cell IDs are documented as uint64 values that can exceed signed
+  BIGINT. Add `s2_cell_id_to_int64` with an exact inverse through
+  `s2_cell_id_to_uint64`, and an opt-in `as_signed=True` (default `False`, so
+  existing results are unchanged) on point indexing, polygon indexing, region
+  covers, and range generation so signed SQL `BETWEEN` queries match the
+  unsigned cell ranges. Correct the PostGIS storage guidance. Invalid cell IDs
+  (outside the 64-bit range, or a bare pd.NA) now raise ValueError/TypeError
+  instead of returning unusable values (#1473).
 
 ### Security
 
