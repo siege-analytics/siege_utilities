@@ -45,6 +45,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `export_prepared_df_as_csv_to_path_using_delimiter(df, path, mode='overwrite')`.
   Pass `mode='errorifexists'` instead of `None` or `'default'`.
 
+- `atomic_write_with_staging` no longer deletes the contents of the caller's
+  `staging_directory`. Through 6.0.0 it ran `shutil.rmtree` on that directory
+  before writing and again on success or failure. A failed write therefore
+  still destroyed any files the caller kept there, and two calls sharing one
+  staging directory could delete or publish each other's files (#1840). Each
+  call now writes into its own new child, `staging_{uuid4hex}`, publishes only
+  that child's contents, and removes only that child. A `staging_directory`
+  the call created itself is still removed afterwards when it is empty, with
+  `os.rmdir`, so anything another writer put there stays. One that already
+  existed, for example one made by `create_unique_staging_directory`, is left
+  in place, empty, after each call.
+  Because Spark now writes to a fresh path, `mode` is applied to
+  `final_destination` instead. Through 6.0.0 Spark wrote into the
+  pre-created staging directory, so `mode='error'` and `'errorifexists'`
+  always raised `AnalysisException`, even when the destination did not exist,
+  and `mode='ignore'` wrote nothing and then published an empty directory,
+  replacing an existing destination and moving its old data to a backup. Now
+  `'error'`/`'errorifexists'` raise `FileExistsError` only when
+  `final_destination` exists, before anything is written, and publish
+  otherwise; `'ignore'` leaves an existing destination untouched and
+  publishes otherwise. For a destination path containing `..`, either
+  reading counts as existing: the lexical one, as Spark resolves it, or the
+  one the operating system resolves, including through symlinks.
+  `'overwrite'` (the default) and `'append'` replace an
+  existing destination as before; `'append'` does not merge into it. Any
+  other `mode`, including `'default'` and `None` (which Spark reads as
+  errorifexists), raises `ValueError` before anything is checked or written,
+  as `write_df_to_parquet` and the CSV export do. The existence check runs
+  once, before the Spark job, so a destination that another writer creates
+  while the job runs is still replaced, as in 6.0.0 (#2037). A custom
+  writer that does not create its output directory now gets
+  `FileNotFoundError`; 6.0.0 created that directory before the write. Spark
+  creates it.
+  **Migration:** if you pre-create `staging_directory`, or build it with
+  `create_unique_staging_directory`, remove it yourself after the call, for
+  example with `os.rmdir(staging_directory)`. Callers that relied on the old
+  clearing to discard leftover files must delete those files explicitly.
+  Callers that passed `mode='error'` or `'errorifexists'` and relied on it
+  always raising must check for an existing destination themselves. Pass
+  `mode='errorifexists'` instead of `'default'` or `None`. A custom writer
+  must create the directory it is given.
+
 - The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
   methods now write a PDF into the generator's output directory and return its
   `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different
