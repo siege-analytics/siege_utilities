@@ -87,6 +87,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `mode='errorifexists'` instead of `'default'` or `None`. A custom writer
   must create the directory it is given.
 
+- `SnowflakeConnector.upload_dataframe(..., overwrite=True)` (and
+  `upload_to_snowflake(..., overwrite=True)`) no longer drops or truncates the
+  target table before the new rows are loaded. Through 6.0.0, with
+  `auto_create_table=True` it ran `DROP TABLE` and then a separate
+  `CREATE TABLE` under autocommit, so a failed CREATE or load left the table
+  absent or empty. With `auto_create_table=False` the connector's
+  `write_pandas` overwrite truncated the table before copying (#1837). The new
+  rows are now loaded into a uniquely named staging table first
+  (`<table>_SU_STAGE_<12 hex>`). With `auto_create_table=False`, the staging
+  table is created `LIKE` the target and the target's rows are then replaced
+  in one `INSERT OVERWRITE` statement. The target table object is kept, with
+  its grants, owner, kind, streams and Time Travel history. This relies on
+  the connection's autocommit, which is assumed and not checked; the staging
+  table is always permanent; and row-access or masking policies on the target
+  are not examined. These limits are tracked in #2034. Column names on this
+  path are quoted as the connector's `write_pandas` quotes them, so names such as
+  `First Name` still work; an empty column name or one containing a control
+  character, including a trailing newline, raises `RuntimeError` before any
+  staging or data SQL runs. With
+  `auto_create_table=True`, the staging table is created from the
+  DataFrame's columns and exchanged with the target in one
+  `ALTER TABLE ... SWAP WITH`, or renamed into place when there is no
+  target. As with 6.0.0's drop-and-recreate, the target then becomes a new,
+  permanent table object: explicit grants, streams and Time Travel history
+  of the previous object do not carry over. If any step fails, the original
+  table is left as it was, the staging table is dropped if the call created
+  it, and `RuntimeError` is raised. If the final `SWAP`, `RENAME` or
+  `INSERT OVERWRITE` is applied on the server but the client still sees an
+  error (for example a response timeout), the call raises although the
+  target already holds the new rows. After a successful upload the staging
+  table is dropped; if that cleanup fails, including with an
+  `InterfaceError`, the upload still succeeds and the leftover table name is
+  logged as an error. **Migration:** privileges depend on the path. With
+  `auto_create_table=False` an overwrite needs CREATE TABLE on the schema
+  (for the staging table) and INSERT and DELETE on the target, which is
+  Snowflake's documented requirement for `INSERT OVERWRITE` (6.0.0's
+  truncate needed TRUNCATE rather than DELETE); ownership of the target is
+  not needed. The target must already exist: with `auto_create_table=False`
+  and `overwrite=True` a missing table now raises, whereas 6.0.0 with
+  snowflake-connector-python 5.2.0 let `write_pandas` create it; pass
+  `auto_create_table=True` to create a missing table. With
+  `auto_create_table=True` an overwrite needs CREATE TABLE on the schema,
+  visibility of the target in `INFORMATION_SCHEMA.TABLES`, and OWNERSHIP of an existing
+  target, which the swap requires as 6.0.0's `DROP TABLE` did. Snowflake
+  does not allow a swap with a temporary table, so overwriting a temporary
+  table with `auto_create_table=True` now fails with the original intact,
+  instead of dropping it and recreating it as a permanent table; use
+  `auto_create_table=False` for such a table. Overwrite now refuses table
+  names longer than 233 characters with `RuntimeError` before any staging or
+  data SQL runs (`USE DATABASE` and `USE SCHEMA`, when requested, run first),
+  because the staging name adds 22 characters to Snowflake's 255-character
+  identifier limit. The staging table name is logged before it is created.
+  A staging table can be left behind by a failed cleanup (its name is logged
+  as an error), by a staging `CREATE` that the server applied while the
+  client saw an error (not dropped, because the call cannot prove it created
+  that table; its name is logged as a warning), or by a process killed
+  mid-upload. Find such tables with `SHOW TABLES LIKE '%_SU_STAGE_%'` and
+  drop them. The private
+  `_create_table_from_dataframe` helper no longer accepts `overwrite=True`
+  and raises `ValueError` instead of dropping the table.
+
 - The `SocialMediaReportGenerator` and `AnalyticsReportGenerator` report
   methods now write a PDF into the generator's output directory and return its
   `Path`. Through 6.0.0 they called `ReportGenerator` methods with a different

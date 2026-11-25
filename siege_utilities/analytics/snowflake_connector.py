@@ -9,6 +9,7 @@ from typing import Optional, Dict, List, Any, Union
 from pathlib import Path
 import json
 import os
+import uuid
 
 try:
     import snowflake.connector
@@ -19,16 +20,47 @@ try:
     from snowflake.connector.pandas_tools import write_pandas
     from snowflake.connector.errors import (
         DatabaseError as _SnowflakeDatabaseError,
+        Error as _SnowflakeError,
         ProgrammingError as _SnowflakeProgrammingError,
         OperationalError as _SnowflakeOperationalError,
     )
     SNOWFLAKE_AVAILABLE = True
     _SF_CONN_ERRORS = (_SnowflakeDatabaseError, _SnowflakeOperationalError)
     _SF_QUERY_ERRORS = (_SnowflakeProgrammingError, _SnowflakeDatabaseError)
+    # Base of every SDK error, including InterfaceError ("Cursor is closed").
+    _SF_ANY_ERRORS = (_SnowflakeError,)
 except ImportError:
     SNOWFLAKE_AVAILABLE = False
     _SF_CONN_ERRORS = (OSError,)
     _SF_QUERY_ERRORS = (ValueError,)
+    _SF_ANY_ERRORS = (OSError, ValueError)
+
+# Overwrite stages rows in "<table>_SU_STAGE_<12 hex>" (#1837).
+_STAGING_MARKER = "_SU_STAGE_"
+_STAGING_NAME_EXTRA = len(_STAGING_MARKER) + 12
+# https://docs.snowflake.com/en/sql-reference/identifiers-syntax
+_MAX_IDENTIFIER_LENGTH = 255
+
+
+def _quote_column_identifier(name: Any) -> str:
+    """Quote a DataFrame column label as one Snowflake identifier.
+
+    Matches the SDK's ``write_pandas`` quoting: wrap in double quotes and
+    double any embedded double quote, so names such as ``First Name`` or
+    ``say "hi"`` are kept exactly and cannot end the identifier early.
+
+    Raises:
+        ValueError: The name is empty, longer than 255 characters, or
+            contains a control character (including a trailing newline).
+    """
+    text = str(name)
+    if (not text or len(text) > _MAX_IDENTIFIER_LENGTH
+            or any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in text)):
+        raise ValueError(
+            f"Invalid SQL column name {text!r}: empty, longer than "
+            f"{_MAX_IDENTIFIER_LENGTH} characters, or contains a control character"
+        )
+    return '"' + text.replace('"', '""') + '"'
 
 try:
     import pandas as pd
@@ -224,12 +256,75 @@ class SnowflakeConnector:
             database: Target database (uses default if not specified)
             schema: Target schema (uses default if not specified)
             auto_create_table: Whether to automatically create table if it doesn't exist
-            overwrite: Whether to overwrite existing table
+            overwrite: Replace the table's rows with ``df``. The existing
+                table is never dropped or truncated before the new rows are
+                loaded (#1837). The rows are first loaded into a new staging
+                table named ``<table>_SU_STAGE_<12 hex>``, so ``table_name``
+                may be at most 233 characters (Snowflake identifiers are
+                limited to 255). Then:
+
+                * ``auto_create_table=False``: the staging table is created
+                  ``LIKE`` the target and the target's rows are replaced in
+                  one ``INSERT OVERWRITE INTO <table> (<columns>) SELECT
+                  <columns> FROM <staging>`` statement. The target table
+                  object is kept, with its grants, owner, kind, streams and
+                  Time Travel history (inferred from the object being kept;
+                  row-access and masking policies are not examined, #2034).
+                  Under autocommit a single statement is its own transaction
+                  and is rolled back if it fails
+                  (https://docs.snowflake.com/en/sql-reference/transactions);
+                  the connector assumes autocommit and does not check it
+                  (#2034). The staging table is always a permanent table
+                  (#2034).
+                  ``OVERWRITE`` removes the existing rows before inserting and
+                  does not change the table's access privileges; it needs
+                  INSERT and DELETE on the target
+                  (https://docs.snowflake.com/en/sql-reference/sql/insert).
+                  Creating the staging table needs CREATE TABLE on the schema.
+                  Column labels are quoted as the SDK quotes them, so names
+                  such as ``First Name`` work; an empty label or one with a
+                  control character raises before any staging or data SQL.
+                  The target must exist; a missing target raises.
+                * ``auto_create_table=True``: the staging table is created
+                  from ``df``'s columns, then exchanged with an existing
+                  target in one ``ALTER TABLE ... SWAP WITH`` statement, or
+                  renamed into place when there is no target. Swapping needs
+                  OWNERSHIP of the target (as 6.0.0's ``DROP TABLE`` did) and
+                  is not allowed with a temporary table, so a temporary
+                  target makes the call fail with the original intact
+                  (https://docs.snowflake.com/en/sql-reference/sql/alter-table).
+                  The target becomes the new, permanent staging table object:
+                  as with 6.0.0's drop-and-recreate, explicit grants, streams
+                  and Time Travel history of the previous object do not carry
+                  over (https://docs.snowflake.com/en/sql-reference/sql/create-table).
+
+                If any step fails, the target is left as it was and the
+                staging table, if this call created it, is dropped. After a
+                successful upload the staging table (after a swap it holds
+                the previous rows) is dropped; if that cleanup fails, the
+                upload still succeeds and the leftover table name is logged
+                as an error. The staging name is logged before it is created.
+                A staging ``CREATE`` that the server applied while the client
+                saw an error is not dropped, because the call cannot prove it
+                created that table, but its name is logged as a warning. A
+                process killed mid-upload can also leave one behind; find
+                them with ``SHOW TABLES LIKE '%_SU_STAGE_%'``.
 
         Raises:
             ImportError: If pandas is not available.
             ConnectionError: If not connected and connection fails.
-            RuntimeError: If the upload fails.
+            RuntimeError: If the upload fails, wrapping the SDK's
+                ``DatabaseError`` family (including ``ProgrammingError`` and
+                ``OperationalError``) and ``ValueError``. With
+                ``overwrite=True`` the target is unchanged when this is
+                raised, except in one case: if the final ``SWAP``,
+                ``RENAME`` or ``INSERT OVERWRITE`` was applied by the server
+                but the client still saw an error (for example a timeout on
+                the response), the target already holds the new rows; after
+                a swap, the previous rows are then dropped with the staging
+                table.
+            snowflake.connector.errors.Error: Other SDK errors, such as
+                ``InterfaceError`` for a closed cursor, propagate unwrapped.
         """
         if not PANDAS_AVAILABLE:
             raise ImportError("Pandas not available for DataFrame operations. Install with: pip install pandas")
@@ -247,8 +342,18 @@ class SnowflakeConnector:
                 validate_identifier(schema, label="schema name")
                 self.cursor.execute(f'USE SCHEMA "{schema}"')
 
+            if overwrite:
+                # Never drop or truncate the caller's table before the new
+                # rows are loaded (#1837): load a staging table first.
+                if auto_create_table:
+                    nrows = self._swap_in_dataframe(df, table_name)
+                else:
+                    nrows = self._overwrite_rows_from_dataframe(df, table_name)
+                log.info(f"Successfully uploaded {nrows} rows to table {table_name}")
+                return
+
             if auto_create_table:
-                self._create_table_from_dataframe(df, table_name, overwrite)
+                self._create_table_from_dataframe(df, table_name)
 
             # write_pandas quotes identifiers by default (case-sensitive, exact
             # DataFrame column case). _create_table_from_dataframe quotes to
@@ -260,7 +365,7 @@ class SnowflakeConnector:
                 df,
                 table_name,
                 auto_create_table=False,
-                overwrite=overwrite,
+                overwrite=False,
             )
 
             if not success:
@@ -311,26 +416,232 @@ class SnowflakeConnector:
         except (*_SF_QUERY_ERRORS, ValueError) as e:
             raise RuntimeError(f"DataFrame download failed: {e}") from e
 
-    def _create_table_from_dataframe(self, df: 'pd.DataFrame', table_name: str, overwrite: bool) -> None:
-        """Create Snowflake table based on DataFrame structure."""
+    def _create_table_from_dataframe(self, df: 'pd.DataFrame', table_name: str,
+                                     overwrite: bool = False, *, if_not_exists: bool = True) -> None:
+        """Create Snowflake table based on DataFrame structure.
+
+        Never drops an existing table. Replacement goes through
+        :meth:`_swap_in_dataframe` or :meth:`_overwrite_rows_from_dataframe`,
+        which keep the original until the new rows are in place (#1837).
+
+        Raises:
+            ValueError: ``overwrite`` is True, or a table or column name is
+                not a safe SQL identifier.
+        """
         from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        if overwrite:
+            raise ValueError(
+                "_create_table_from_dataframe no longer drops tables; use "
+                "upload_dataframe(overwrite=True) to replace a table atomically"
+            )
         validate_identifier(table_name, label="table name")
         # Quote identifiers so CREATE matches write_pandas (which quotes by
         # default, preserving the DataFrame's exact column case). Unquoted
         # identifiers are uppercased by Snowflake and would not match the
         # quoted columns write_pandas writes, breaking read-back.
-        if overwrite:
-            self.cursor.execute(f'DROP TABLE IF EXISTS "{table_name}"')
-
         columns = []
         for col_name, dtype in df.dtypes.items():
             validate_identifier(str(col_name), label="column name", allow_dotted=False)
             snowflake_type = self._map_pandas_to_snowflake_type(dtype)
             columns.append(f'"{col_name}" {snowflake_type}')
 
-        create_statement = f'CREATE TABLE IF NOT EXISTS "{table_name}" ({", ".join(columns)})'
+        create = 'CREATE TABLE IF NOT EXISTS' if if_not_exists else 'CREATE TABLE'
+        create_statement = f'{create} "{table_name}" ({", ".join(columns)})'
         self.cursor.execute(create_statement)
         log.info(f"Created table {table_name} with {len(columns)} columns")
+
+    def _table_exists(self, table_name: str) -> bool:
+        """Return whether ``table_name`` (exact, quoted spelling) exists in the
+        current database and schema. ``table_name`` must already be validated.
+
+        The probe binds the name with a ``%s`` placeholder, so it relies on the
+        connector's default ``pyformat`` parameter style, as ``get_table_info``
+        does. A process that sets ``snowflake.connector.paramstyle`` to
+        ``qmark`` or ``numeric`` makes this statement fail, before any DDL runs.
+        """
+        self.cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_NAME = %s
+              AND TABLE_SCHEMA = CURRENT_SCHEMA()
+              AND TABLE_CATALOG = CURRENT_DATABASE()
+            """,
+            (table_name,),
+        )
+        return self.cursor.fetchone()[0] > 0
+
+    def _drop_staging_table(self, staging_name: str, contents: str) -> None:
+        """Drop a staging table this call created; log instead of raising.
+
+        Catches the SDK's ``Error`` base, so ``InterfaceError`` (for example
+        "Cursor is closed in execute.") is covered as well as the
+        ``DatabaseError`` family. After a successful upload a cleanup failure
+        therefore never turns success into an error, and on a failure path it
+        never replaces the primary error. The leftover table name is logged.
+        """
+        try:
+            self.cursor.execute(f'DROP TABLE IF EXISTS "{staging_name}"')
+        except _SF_ANY_ERRORS as e:
+            log.error(
+                f"Could not drop staging table {staging_name} holding {contents}; "
+                f"drop it manually: {e}"
+            )
+
+    def _new_staging_name(self, table_name: str) -> str:
+        """Return a unique, validated staging table name for ``table_name``.
+
+        Raises:
+            ValueError: The name would exceed Snowflake's 255-character
+                identifier limit (``table_name`` longer than 233 characters),
+                or is not a safe identifier. Raised before any staging or data
+                SQL runs (``USE DATABASE``/``USE SCHEMA`` may already have run).
+        """
+        from siege_utilities.core.sql_safety import validate_sql_identifier as validate_identifier
+        staging_name = f'{table_name}{_STAGING_MARKER}{uuid.uuid4().hex[:12].upper()}'
+        if len(staging_name) > _MAX_IDENTIFIER_LENGTH:
+            raise ValueError(
+                f"Table name is too long to overwrite: the staging table name would "
+                f"exceed Snowflake's {_MAX_IDENTIFIER_LENGTH}-character identifier limit; "
+                f"table names of up to {_MAX_IDENTIFIER_LENGTH - _STAGING_NAME_EXTRA} "
+                f"characters are supported"
+            )
+        validate_identifier(staging_name, label="staging table name")
+        return staging_name
+
+    def _load_staging_table(self, df: 'pd.DataFrame', staging_name: str, table_name: str) -> int:
+        """Append ``df`` to the empty staging table and return the row count.
+
+        Raises:
+            RuntimeError: ``write_pandas`` reports failure.
+        """
+        success, _, nrows, _ = write_pandas(
+            self.connection,
+            df,
+            staging_name,
+            auto_create_table=False,
+            overwrite=False,
+        )
+        if not success:
+            raise RuntimeError(f"write_pandas reported failure for table {table_name}")
+        return nrows
+
+    def _swap_in_dataframe(self, df: 'pd.DataFrame', table_name: str) -> int:
+        """Overwrite with ``auto_create_table=True``: load, then swap or rename.
+
+        Create a new staging table from ``df``'s columns (plain ``CREATE
+        TABLE``, so a name collision fails instead of reusing another table),
+        load it, then exchange it with an existing target in one ``ALTER
+        TABLE ... SWAP WITH`` statement, or rename it into place when there is
+        no target. Swap and rename need OWNERSHIP of the tables; swapping with
+        a temporary table is not allowed
+        (https://docs.snowflake.com/en/sql-reference/sql/alter-table). On any
+        failure the staging table is dropped only if this call created it, and
+        the error is re-raised. After a successful swap the staging name holds
+        the previous rows and is dropped.
+
+        Returns:
+            Number of rows loaded.
+
+        Raises:
+            ValueError: From :meth:`_new_staging_name` or a column name.
+            RuntimeError: ``write_pandas`` reports failure.
+            snowflake.connector.errors.Error: A statement fails.
+                ``upload_dataframe`` wraps the ``DatabaseError`` family and
+                ``ValueError`` in ``RuntimeError``; other SDK errors propagate.
+        """
+        staging_name = self._new_staging_name(table_name)
+        target_exists = self._table_exists(table_name)
+        created = False
+        try:
+            log.info(f"Creating staging table {staging_name} to overwrite {table_name}")
+            self._create_table_from_dataframe(df, staging_name, if_not_exists=False)
+            created = True
+            nrows = self._load_staging_table(df, staging_name, table_name)
+            if target_exists:
+                self.cursor.execute(f'ALTER TABLE "{staging_name}" SWAP WITH "{table_name}"')
+            else:
+                self.cursor.execute(f'ALTER TABLE "{staging_name}" RENAME TO "{table_name}"')
+        except BaseException as error:
+            self._clean_up_failed_staging(staging_name, table_name, created, error)
+            raise
+        if target_exists:
+            self._drop_staging_table(staging_name, f"the previous rows of {table_name}")
+        return nrows
+
+    def _clean_up_failed_staging(self, staging_name: str, table_name: str,
+                                 created: bool, error: BaseException) -> None:
+        """On a failed overwrite, drop the staging table if this call created it.
+
+        If the staging ``CREATE`` itself raised, the server may still have
+        applied it (for example when only the response timed out). The table
+        is then not dropped, because this call cannot prove it created it, but
+        its name is logged so it can be found and dropped. A ``ValueError``
+        means validation failed before any ``CREATE`` was sent.
+        """
+        if created:
+            self._drop_staging_table(staging_name, f"unpublished rows for {table_name}")
+        elif not isinstance(error, ValueError):
+            log.warning(
+                f"Creating staging table {staging_name} for {table_name} failed ({error}); "
+                f"if the server applied the CREATE anyway, {staging_name} was left behind "
+                f"and holds no published data; drop it manually"
+            )
+
+    def _overwrite_rows_from_dataframe(self, df: 'pd.DataFrame', table_name: str) -> int:
+        """Overwrite with ``auto_create_table=False``: keep the table object.
+
+        Create a staging table ``LIKE`` the target, load ``df`` into it, then
+        replace the target's rows in one ``INSERT OVERWRITE INTO <table>
+        (<columns>) SELECT <columns> FROM <staging>`` statement, and drop the
+        staging table. The target object keeps its grants, owner, kind,
+        streams and Time Travel history: ``OVERWRITE`` removes the existing
+        rows before inserting and "doesn't change the access control
+        privileges granted on the table"; it needs INSERT and DELETE on the
+        target (https://docs.snowflake.com/en/sql-reference/sql/insert). Run
+        under autocommit, the statement is its own transaction and is rolled
+        back if it fails, so the target holds either all old or all new rows
+        (https://docs.snowflake.com/en/sql-reference/transactions). The
+        connector assumes autocommit and does not check it; that, the
+        permanent staging table and policies on the target are tracked in
+        #2034. The staging table needs CREATE TABLE on the schema and does
+        not inherit the target's grants (no ``COPY GRANTS``), which is
+        irrelevant because it is dropped.
+
+        Returns:
+            Number of rows loaded.
+
+        Column labels are quoted the way the SDK's ``write_pandas`` quotes them
+        (see :func:`_quote_column_identifier`), so any label the target table
+        can hold, such as ``First Name``, is accepted.
+
+        Raises:
+            ValueError: From :meth:`_new_staging_name`, or a column label that
+                is empty, too long or contains a control character; raised
+                before any staging or data SQL runs.
+            RuntimeError: ``write_pandas`` reports failure.
+            snowflake.connector.errors.Error: A statement fails, including the
+                ``CREATE ... LIKE`` when the target does not exist.
+                ``upload_dataframe`` wraps the ``DatabaseError`` family and
+                ``ValueError`` in ``RuntimeError``; other SDK errors propagate.
+        """
+        column_list = ", ".join(_quote_column_identifier(col) for col in df.columns)
+        staging_name = self._new_staging_name(table_name)
+        created = False
+        try:
+            log.info(f"Creating staging table {staging_name} to overwrite {table_name}")
+            self.cursor.execute(f'CREATE TABLE "{staging_name}" LIKE "{table_name}"')
+            created = True
+            nrows = self._load_staging_table(df, staging_name, table_name)
+            self.cursor.execute(
+                f'INSERT OVERWRITE INTO "{table_name}" ({column_list}) '
+                f'SELECT {column_list} FROM "{staging_name}"'
+            )
+        except BaseException as error:
+            self._clean_up_failed_staging(staging_name, table_name, created, error)
+            raise
+        self._drop_staging_table(staging_name, f"a copy of the new rows of {table_name}")
+        return nrows
 
     def _map_pandas_to_snowflake_type(self, pandas_dtype) -> str:
         """Map a pandas dtype to the Snowflake column type used by auto-create.
