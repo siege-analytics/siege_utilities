@@ -113,7 +113,7 @@ class TestCreateFeatureBranch:
         # Should have called run_git_command at least for branch --show-current
         assert mock_rgc.called
 
-    def test_already_on_base_branch_skips_checkout(self):
+    def test_already_on_base_branch_skips_switch(self):
         call_log = []
 
         def fake_rgc(*args, **kwargs):
@@ -127,12 +127,12 @@ class TestCreateFeatureBranch:
         with patch(RGC, side_effect=fake_rgc):
             result = create_feature_branch("feature/x", base_branch="main")
 
-        # Should NOT have called checkout to base branch (already on main)
-        checkout_base_calls = [
+        # Should not switch to the base branch when already on main
+        switch_base_calls = [
             c for c in call_log
-            if len(c[0]) >= 2 and c[0][0] == "checkout" and c[0][1] == "main"
+            if c[0] == ("switch", "--", "main")
         ]
-        assert len(checkout_base_calls) == 0
+        assert len(switch_base_calls) == 0
         assert result["branch_name"] == "feature/x"
         assert result["status"] == "created"
 
@@ -150,8 +150,8 @@ class TestCreateFeatureBranch:
         with patch(RGC, side_effect=fake_rgc):
             create_feature_branch("feature/x", base_branch="main")
 
-        # Should have a checkout to main
-        assert ("checkout", "main") in call_log
+        # Should switch to main
+        assert ("switch", "--", "main") in call_log
 
     def test_pulls_from_origin_when_remote_exists(self):
         call_log = []
@@ -187,10 +187,8 @@ class TestSwitchBranch:
 
     def test_branch_exists_locally(self):
         def fake_rgc(*args, **kwargs):
-            if args[0] == "branch" and args[1] == "--list":
-                return "  main\n  develop\n  feature/x"
-            if args[0] == "checkout":
-                return ""
+            if args == ("rev-parse", "--verify", "refs/heads/feature/x"):
+                return "a" * 40
             if args[0] == "branch" and args[1] == "--show-current":
                 return "feature/x"
             return ""
@@ -207,8 +205,8 @@ class TestSwitchBranch:
             call_log.append(args)
             if args[0] == "branch" and args[1] == "--list":
                 return "  main"
-            if args[0] == "branch" and args[1] == "-r":
-                return "  origin/feature/y"
+            if args == ("rev-parse", "--verify", "refs/remotes/origin/feature/y"):
+                return "a" * 40
             if args[0] == "branch" and args[1] == "--show-current":
                 return "feature/y"
             return ""
@@ -217,7 +215,7 @@ class TestSwitchBranch:
             result = switch_branch("feature/y")
         assert result["status"] == "switched"
         # Should have created a tracking branch
-        assert ("checkout", "-b", "feature/y", "origin/feature/y") in call_log
+        assert ("switch", "--track", "-c", "feature/y", "--", "refs/remotes/origin/feature/y") in call_log
 
     def test_branch_not_found_raises(self):
         def fake_rgc(*args, **kwargs):
@@ -256,7 +254,7 @@ class TestMergeBranch:
         # merge command should contain "merge" and source branch
         merge_calls = [c for c in call_log if c[0] == "merge"]
         assert len(merge_calls) == 1
-        assert "feature/x" in merge_calls[0]
+        assert "refs/heads/feature/x" in merge_calls[0]
 
     def test_fast_forward_only_flag(self):
         call_log = []
@@ -302,7 +300,7 @@ class TestMergeBranch:
         with patch(RGC, side_effect=fake_rgc):
             merge_branch("feature/x", target_branch="main")
 
-        assert ("checkout", "main") in call_log
+        assert ("switch", "--", "main") in call_log
 
     def test_merge_failure_raises_git_error(self):
         def fake_rgc(*args, **kwargs):
@@ -340,7 +338,7 @@ class TestRebaseBranch:
         assert result["status"] == "success"
         rebase_calls = [c for c in call_log if c[0] == "rebase"]
         assert len(rebase_calls) == 1
-        assert "main" in rebase_calls[0]
+        assert "refs/heads/main" in rebase_calls[0]
 
     def test_interactive_flag(self):
         call_log = []
@@ -370,7 +368,7 @@ class TestRebaseBranch:
         with patch(RGC, side_effect=fake_rgc):
             rebase_branch("feature/x")
 
-        assert ("checkout", "feature/x") in call_log
+        assert ("switch", "--", "feature/x") in call_log
 
     def test_rebase_failure_raises_git_error(self):
         def fake_rgc(*args, **kwargs):
@@ -466,7 +464,7 @@ class TestApplyStash:
 
         assert result["status"] == "success"
         assert result["action"] == "apply"
-        assert call_log[0] == ("stash", "apply", "stash@{0}")
+        assert call_log[0] == ("stash", "apply", "--", "stash@{0}")
 
     def test_pop_stash(self):
         call_log = []
@@ -479,7 +477,7 @@ class TestApplyStash:
             result = apply_stash(pop=True)
 
         assert result["action"] == "pop"
-        assert call_log[0] == ("stash", "pop", "stash@{0}")
+        assert call_log[0] == ("stash", "pop", "--", "stash@{0}")
 
     def test_custom_stash_ref(self):
         call_log = []
@@ -491,7 +489,7 @@ class TestApplyStash:
         with patch(RGC, side_effect=fake_rgc):
             result = apply_stash(stash_ref="stash@{2}")
 
-        assert call_log[0] == ("stash", "apply", "stash@{2}")
+        assert call_log[0] == ("stash", "apply", "--", "stash@{2}")
         assert result["stash_ref"] == "stash@{2}"
 
     def test_apply_failure_raises_git_error(self):
@@ -596,7 +594,7 @@ class TestResetToCommit:
             result = reset_to_commit("abc1234", reset_type="soft")
 
         assert result["status"] == "success"
-        assert ("reset", "--soft", "abc1234") in call_log
+        assert ("reset", "--soft", "abc1234", "--") in call_log
 
     def test_mixed_reset(self):
         call_log = []
@@ -608,7 +606,7 @@ class TestResetToCommit:
         with patch(RGC, side_effect=fake_rgc):
             reset_to_commit("abc1234", reset_type="mixed")
 
-        assert ("reset", "--mixed", "abc1234") in call_log
+        assert ("reset", "--mixed", "abc1234", "--") in call_log
 
     def test_hard_reset(self):
         call_log = []
@@ -620,7 +618,7 @@ class TestResetToCommit:
         with patch(RGC, side_effect=fake_rgc):
             reset_to_commit("abc1234", reset_type="hard")
 
-        assert ("reset", "--hard", "abc1234") in call_log
+        assert ("reset", "--hard", "abc1234", "--") in call_log
 
     def test_invalid_reset_type_raises(self):
         with pytest.raises(ValueError, match="Invalid reset type"):
@@ -656,7 +654,7 @@ class TestCherryPickCommit:
             result = cherry_pick_commit("abc1234")
 
         assert result["status"] == "success"
-        assert ("cherry-pick", "abc1234") in call_log
+        assert ("cherry-pick", "--", "abc1234") in call_log
 
     def test_continue_on_conflict(self):
         call_log = []
@@ -741,7 +739,7 @@ class TestCreateTag:
         assert result["status"] == "pushed"
         push_calls = [c for c in call_log if c[0] == "push"]
         assert len(push_calls) == 1
-        assert "v1.0.0" in push_calls[0]
+        assert "refs/tags/v1.0.0" in push_calls[0]
 
     def test_tag_creation_failure_raises_git_error(self):
         with patch(RGC, side_effect=GitError("tag exists")):
@@ -791,7 +789,7 @@ class TestPushBranch:
             push_branch(branch_name="feature/x")
 
         push_calls = [c for c in call_log if c[0] == "push"]
-        assert "feature/x" in push_calls[0]
+        assert "refs/heads/feature/x" in push_calls[0]
 
     def test_force_push_uses_lease(self):
         call_log = []
@@ -858,7 +856,7 @@ class TestPullBranch:
             pull_branch(branch_name="develop")
 
         pull_calls = [c for c in call_log if c[0] == "pull"]
-        assert "develop" in pull_calls[0]
+        assert "refs/heads/develop" in pull_calls[0]
 
     def test_pull_with_rebase(self):
         call_log = []

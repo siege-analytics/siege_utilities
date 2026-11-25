@@ -551,14 +551,15 @@ class ReportGenerator:
         log.info(f"PDF report generated successfully: {output_path}")
 
     def _process_chart_list(self, charts: List[Any], width: float = 6,
-                             height: float = 4) -> List:
+                             height: float = 4, image_dpi: int = 200,
+                             jpeg_quality: int = 85) -> List:
         """
         Process a list of charts in various formats into ReportLab Image objects.
 
         Supported formats:
         - File path (str or Path)
         - matplotlib Figure object
-        - PIL Image object
+        - PIL Image object (downsampled and re-encoded, see ``_encode_pil_image``)
         - BytesIO object containing image data
         - ReportLab Flowable (passed through)
 
@@ -566,6 +567,10 @@ class ReportGenerator:
             charts: List of chart objects in various formats
             width: Image width in inches
             height: Image height in inches
+            image_dpi: Resolution PIL images are downsampled to for the
+                ``width`` x ``height`` display box. Smaller images are not
+                upsampled.
+            jpeg_quality: JPEG quality used for photographic PIL images.
 
         Returns:
             List of ReportLab Image flowables
@@ -622,10 +627,16 @@ class ReportGenerator:
 
                 # Handle PIL Image
                 if hasattr(chart, 'save') and hasattr(chart, 'mode'):
-                    # PIL Image
-                    buf = io.BytesIO()
-                    chart.save(buf, format='PNG')
-                    buf.seek(0)
+                    if self._is_pil_image(chart):
+                        # Store only the pixels the display box needs, as JPEG
+                        # only for photographs (#2000).
+                        buf = self._encode_pil_image(chart, width, height,
+                                                     image_dpi, jpeg_quality)
+                    else:
+                        # Image-like object without PIL's API: embed as is.
+                        buf = io.BytesIO()
+                        chart.save(buf, format='PNG')
+                        buf.seek(0)
                     img = RLImage(buf, width=width*inch, height=height*inch)
                     result.append(img)
                     continue
@@ -658,6 +669,111 @@ class ReportGenerator:
                 log.error(f"Error processing chart: {e}")
 
         return result
+
+    # Colour images with at most this many distinct colours (counted on the
+    # original pixels) are flat-colour graphics: charts, logos, diagrams,
+    # screenshots. They are always kept lossless.
+    _FLAT_COLOUR_MAX_COLOURS = 256
+    # Any other opaque image is stored as JPEG only when the JPEG is at most
+    # this fraction of the lossless PNG of the same pixels.
+    _JPEG_MAX_SIZE_RATIO = 1 / 3
+    _ALPHA_MODES = ('RGBA', 'LA', 'PA', 'RGBa', 'La')
+    _GREYSCALE_MODES = ('L', 'LA', 'La', 'I', 'F')
+
+    @staticmethod
+    def _is_pil_image(obj: Any) -> bool:
+        """True for a real ``PIL.Image.Image``; False if Pillow is absent."""
+        try:
+            from PIL import Image as PILImage
+        except ImportError:
+            return False
+        return isinstance(obj, PILImage.Image)
+
+    @classmethod
+    def _to_embeddable_mode(cls, image: Any, has_alpha: bool) -> Any:
+        """Convert ``image`` to L, LA, RGB or RGBA without losing what it shows.
+
+        Bilevel and palette images are converted *before* resampling because
+        Pillow resizes modes ``1`` and ``P`` with nearest-neighbour whatever
+        filter is requested, which drops thin lines. 16-bit greyscale is
+        scaled to 8 bits; 32-bit integer and float greyscale (``I``, ``F``)
+        are clipped to 0-255.
+        """
+        mode = image.mode
+        if mode in ('L', 'LA', 'RGB', 'RGBA'):
+            return image
+        if mode == '1':
+            return image.convert('L')
+        if mode in ('P', 'PA'):
+            return image.convert('RGBA' if has_alpha else 'RGB')
+        if mode.startswith('I;16'):
+            return image.convert('I').point(lambda v: v * (1 / 256)).convert('L')
+        if mode in ('I', 'F'):
+            return image.convert('L')
+        if mode == 'La':
+            return image.convert('LA')
+        return image.convert('RGBA' if has_alpha else 'RGB')
+
+    @classmethod
+    def _encode_pil_image(cls, image: Any, width: float, height: float,
+                          dpi: int, jpeg_quality: int) -> Any:
+        """Encode a PIL image for embedding in a ``width`` x ``height`` inch box.
+
+        The image is downsampled (never upsampled) with a uniform scale so it
+        still covers the box at ``dpi``. The format is chosen as follows:
+
+        - images with transparency, and colour images whose *original* pixels
+          have at most ``_FLAT_COLOUR_MAX_COLOURS`` colours (including every
+          bilevel and palette image), are stored as lossless PNG;
+        - any other image (including greyscale) is stored as JPEG at
+          ``jpeg_quality`` only if that JPEG is at most
+          ``_JPEG_MAX_SIZE_RATIO`` of the size of the lossless PNG of the same
+          pixels, and as PNG otherwise.
+
+        The caller's image is not modified.
+
+        Raises:
+            ValueError: If the image has zero width or height.
+
+        Returns:
+            A BytesIO positioned at the start of the encoded image.
+        """
+        import io
+        from PIL import Image as PILImage
+
+        src_w, src_h = image.size
+        if not src_w or not src_h:
+            raise ValueError(f"cannot embed an empty image ({src_w}x{src_h})")
+
+        # Classify on the original pixels: resampling creates new colours.
+        mode = image.mode
+        has_alpha = mode in cls._ALPHA_MODES or 'transparency' in image.info
+        if mode in ('1', 'P', 'PA'):
+            flat_colour = True
+        elif mode.startswith('I;16') or mode in cls._GREYSCALE_MODES:
+            flat_colour = False
+        else:
+            flat_colour = (image.getcolors(maxcolors=cls._FLAT_COLOUR_MAX_COLOURS)
+                           is not None)
+
+        image = cls._to_embeddable_mode(image, has_alpha)
+        scale = min(1.0, max(width * dpi / src_w, height * dpi / src_h))
+        if scale < 1.0:
+            target = (max(1, round(src_w * scale)), max(1, round(src_h * scale)))
+            image = image.resize(target, PILImage.Resampling.LANCZOS)
+
+        png = io.BytesIO()
+        image.save(png, format='PNG')
+        png.seek(0)
+        if has_alpha or flat_colour:
+            return png
+
+        jpeg = io.BytesIO()
+        image.save(jpeg, format='JPEG', quality=jpeg_quality, optimize=True)
+        if len(jpeg.getvalue()) <= len(png.getvalue()) * cls._JPEG_MAX_SIZE_RATIO:
+            jpeg.seek(0)
+            return jpeg
+        return png
 
     def _build_section_content(self, section: Dict[str, Any],
                               template) -> List:

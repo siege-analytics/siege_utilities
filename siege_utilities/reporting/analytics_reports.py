@@ -847,10 +847,13 @@ class AnalyticsReportGenerator:
                         f'Sample Data (columns {start}–{end} of {len(all_cols)})'
                         if multi else 'Sample Data'
                     )
+                    # Select by position: label selection repeats every column
+                    # that shares a repeated label, so rows would outgrow the
+                    # headers.
                     tables.append({
                         'title': title,
                         'headers': group,
-                        'data': head_df[group].values.tolist(),
+                        'data': head_df.iloc[:, start - 1:end].values.tolist(),
                     })
                 
                 # Summary statistics table
