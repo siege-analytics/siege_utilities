@@ -776,10 +776,9 @@ def normalize_to_year(
             POPULATION/HOUSING require the corresponding crosswalk weight column.
         intensive_variables: Rate/ratio columns to area-weight average instead
             of disaggregating and summing. Requires absolute areas on merges.
-        carried_coverage: <col>_coverage columns produced by an earlier call,
-            for chaining, for example transform with your own 2000 to 2010
-            crosswalk table and then normalize_to_year from 2010 to 2020
-            (see CrosswalkProcessor.transform).
+        carried_coverage: <col>_coverage columns already in df from an
+            earlier crosswalk step, such as a transform with your own
+            2000 to 2010 table (see CrosswalkProcessor.transform).
 
     Returns:
         DataFrame normalized to target year boundaries, including <col>_coverage

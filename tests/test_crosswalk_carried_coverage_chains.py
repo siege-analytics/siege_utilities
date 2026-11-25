@@ -4,12 +4,9 @@ weighted_mean divides by the weight of the rows whose value is present.
 Carried coverage says how complete a value is; it is not a weight, so it must
 not shrink that denominator.
 
-A 2000 to 2020 chain takes two steps, for example transform with your own
-2000 to 2010 crosswalk table and then normalize_to_year from 2010 to 2020, the
-only transition the Census crosswalk client serves. The second call receives
-the <col>_coverage columns of the first and needs carried_coverage to accept
-them. The chained tests below run two normalize_to_year calls through a
-patched crosswalk lookup, which exercises the same second step.
+The Census client publishes only 2010 to 2020, so the chain tests patch
+get_crosswalk to supply both steps. A second call receives the <col>_coverage
+columns of the first and needs carried_coverage to accept them.
 """
 from unittest.mock import patch
 
